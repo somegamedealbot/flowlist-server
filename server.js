@@ -29,7 +29,7 @@ app.use(cors({
         resave: false,
     }))
     .use(express.json())
-    .use(cookieParser());
+    .use(cookieParser('hello'));
 
 app.use('/user', userRouter);
 
@@ -45,8 +45,7 @@ app.post('/signup', errorHandleWrapper(async (req, res) => {
 }));
 
 app.post('/login', errorHandleWrapper(async (req, res) => {
-    console.log(req.body);
-    console.log(req.session);
+
     let result = await User.verifyAccountInfo(req.body);
     req.session.loggedIn = true;
     req.session.uid = result;
