@@ -29,6 +29,7 @@ async function refreshWrapper(apiCall, uid, service, req){
             return data;
         }
         catch{
+            console.log(err);
             throw err;
         }
     }

@@ -2,6 +2,7 @@ const { default: axios } = require('axios');
 const { singleDBQuery } = require('../db/connect');
 const { tryOperation, refreshWrapper } = require('../helpers/tryOperation');
 const apiPlaylistURI = 'https://api.spotify.com/v1/me/playlists?';
+const apiGetPlaylistUri = 'https://api.spotify.com/v1/playlists'
 
 require('dotenv').config();
 
@@ -15,6 +16,28 @@ function generateAuthKey(length){ // MAKE SURE THAT IT DOES NOT GENERATE A DUPLI
       string.push(selection[rand]);
     }
     return string.join("");
+}
+
+function seperateIds(ids){
+    const bundledIds = [];
+    let count = 0;
+    const max = 50;
+
+    while (count < ids.length){
+        let combined = ids[count];
+        count += 1;
+        if (count >= ids.length){
+            bundledIds.push(combined);
+        }
+        else {
+            for (let i = 1; count < ids.length && i < max; i++, count++){
+                combined += ',' + ids[i];
+            }
+            bundledIds.push(combined);
+        }
+    }
+
+    return bundledIds;
 }
 
 class Spotify{
@@ -129,7 +152,46 @@ class Spotify{
         return access_token;
     }
 
-    static async getPlaylists(uid, accessToken, req){
+    static async getPlaylist(uid, accessToken, req, playlistId){
+        let playlistsData = refreshWrapper(async (newAccessToken) => {
+            if (newAccessToken){
+                accessToken = newAccessToken
+            }
+            let params = new URLSearchParams({
+                // 'fields': 'total,items(track(name,href,uri,artists(name),album(images(url))))',
+                'limit': 100,
+                'offset': 0
+            })
+            const baseUrl = `https://api.spotify.com/v1/playlists`;
+            const axiosInstance = axios.create({
+                method: 'get',
+                baseURL: baseUrl,
+                headers: { 'Authorization': 'Bearer ' + accessToken}
+            });
+
+            let playlistData = (await axiosInstance.get(`/${playlistId}`)).data
+
+            let count = playlistData.tracks.total < 100 ? playlistData.tracks.total : 100;            
+            const total = playlistData.tracks.total;
+            const combinedResponse = playlistData;
+            combinedResponse.tracks = playlistData.tracks.items;
+
+            while (count < total){
+                params.set('offset', count)
+                playlistData = (await axiosInstance.get(`${playlistId}/tracks?${params.toString()}`)).data;
+                // console.log(data);
+                combinedResponse.tracks.push(...playlistData.tracks.items);
+                count += 100;
+            }
+
+            return combinedResponse;
+        }
+               
+        , uid, Spotify, req);
+        return playlistsData;
+    }
+
+    static async getPlaylists(uid, accessToken, req, pageToken){
         
         let playlistsData = refreshWrapper(async (newAccessToken) => {
             if (newAccessToken){
@@ -138,9 +200,13 @@ class Spotify{
             
             let response = await axios({
                 method: 'get',
-                url: apiPlaylistURI + new URLSearchParams({
-                    limit: '50'
-                }),
+                url: pageToken ? 
+                    pageToken + new URLSearchParams({
+                        limit: '50',
+                    }) : 
+                    apiPlaylistURI + new URLSearchParams({
+                        limit: '50',
+                    }),
                 headers: { 'Authorization': 'Bearer ' + accessToken},
                 json: true
             })
@@ -149,6 +215,66 @@ class Spotify{
         , uid, Spotify, req);
 
         return playlistsData
+    }
+
+    static async convertPlaylist(playlistId){
+        let playlistData = refreshWrapper(async (newAccessToken) => {
+            if (newAccessToken){
+                accessToken = newAccessToken
+            };
+
+
+        })
+    }
+
+    static async search(searchToken, accessToken, limit){
+        if (searchToken.match(/deleted video/i)){
+            return {
+                tracks: {
+                    href: undefined,
+                    items: []
+                },
+                deleted: true
+            }
+        }
+        const data = (await axios.get(`https://api.spotify.com/v1/search?${
+            new URLSearchParams({
+                q: searchToken,
+                type: 'track',
+                limit: limit
+            })
+        }`
+        , 
+        {
+            headers: { 'Authorization': 'Bearer ' + accessToken},
+        })
+        ).data
+
+        return data;
+    }
+
+    static async searchTracks(uid, accessToken, req, tracksData){
+        const searchTokens = tracksData.searchTokens;
+        let results = await refreshWrapper(async (newAccessToken) => {
+            if (newAccessToken){
+                accessToken = newAccessToken
+            }
+
+            const reqs = []
+            const combinedResult = {
+                tracks: [] 
+            };
+
+            for (let token of searchTokens){
+                let data = Spotify.search(token, accessToken, 1);
+                reqs.push(data);
+            }
+            combinedResult.tracks = await Promise.all(reqs);
+            return combinedResult;
+            
+        }, uid, Spotify, req);
+
+        return results;
     }
 
 }

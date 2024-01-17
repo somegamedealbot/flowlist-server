@@ -4,6 +4,9 @@ const { singleDBQuery } = require('../db/connect');
 const {google} = require('googleapis');
 const { tryOperation, refreshWrapper } = require('../helpers/tryOperation');
 const { youtube_v3 } = require('googleapis/build/src/apis/youtube');
+const { getSongInfo } = require('./youtubeSearch');
+// const workerpool = require('workerpool');
+// const pool = workerpool.pool('./workerpool');
 
 require('dotenv').config();
 function parseCredentials({access_token, refresh_token, time}){
@@ -166,18 +169,7 @@ class Youtube{
         return access_token;
     }
 
-    // let playlistData = await refreshWrapper(async () => {
-    //     let axios = axiosSetup(accessToken);
-    //     let response = await axios.get(new URLSearchParams({
-    //         part: 'snippet,contentDetails',
-    //         maxResults: '50',
-    //         mine: true,
-    //         key: process.env.YOUTUBE_API_KEY
-    //     }).toString());
-    //     return response.data;
-    // }, uid, this, req)
-    // return playlistData;
-    async getPlaylists(uid, accessToken, req){
+    async getPlaylists(uid, accessToken, req, pageToken){
         let client = this.createO2AuthClient(uid, accessToken, req);
         let youtubeAPI = this.youtubeAPI();
         let response = await youtubeAPI.playlists.list({
@@ -185,11 +177,82 @@ class Youtube{
             part: 'snippet,contentDetails',
             maxResults: '50',
             mine: true,
+            pageToken: pageToken,
             key: process.env.YOUTUBE_API_KEY,
             access_token: accessToken // comment this out to test refresh
         });
-        // console.log(response.data);
         return response.data;
+    }
+
+    async getPlaylist(uid, accessToken, req, playlistId){
+        let client = this.createO2AuthClient(uid, accessToken, req);
+        let youtubeAPI = this.youtubeAPI();
+        const playlistParams = {
+            auth: client,
+            part: 'snippet',
+            id: playlistId,
+            key: process.env.YOUTUBE_API_KEY,
+            access_token: accessToken // comment this out to test refresh      
+        }
+        
+        const listRequestParams = {
+            auth: client,
+            part: 'snippet,contentDetails,id',
+            maxResults: '50',
+            playlistId: playlistId,
+            key: process.env.YOUTUBE_API_KEY,
+            access_token: accessToken // comment this out to test refresh
+        }
+        
+        let [playlistRes, playlistItemsRes] = await Promise.all(
+            [
+                youtubeAPI.playlists.list(playlistParams),
+                youtubeAPI.playlistItems.list(listRequestParams)
+            ]
+        );
+        
+        const combinedResponse = playlistRes.data.items[0];
+        combinedResponse.items = playlistItemsRes.data.items;
+        
+        const total = combinedResponse.total;
+        let count = combinedResponse.total < 50 ? combinedResponse.total : 50;
+        
+        while (count < total){
+            listRequestParams.pageToken = response.nextPageToken;
+            response = (await youtubeAPI.playlistItems.list(
+                listRequestParams
+            )).data;
+                
+            combinedResponse.items.push(...response.items)
+            count += 50
+        }
+        return combinedResponse;
+    }
+
+    async search(searchTokens){
+        const res = await tryOperation(async () => {
+            const combinedResult = {
+                tracks: []
+            }
+            const reqs = []
+            for (let token of searchTokens){
+                let data = getSongInfo(token, 1);
+                reqs.push(data);
+            }
+    
+            combinedResult.tracks = await Promise.all(reqs);
+            return combinedResult;
+
+        }, 'Unable to complete youtube search');
+
+        return res; 
+    }
+
+    async searchTracks(uid, accessToken, req, tracksData){
+        const searchTokens = tracksData.searchTokens;
+        let data = await this.search(searchTokens);
+        // let data = await pool.exec('youtubeSearchSongs', [searchTokens]);
+        return data;
     }
 }
 
