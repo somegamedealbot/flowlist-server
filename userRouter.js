@@ -24,6 +24,12 @@ const serviceAccessToken = (service, session) => {
     }
 }
 
+userRouter.use((err, req, res, next) => {
+    console.error(err);
+    res.status(500)
+    res.send('Internal Server Error');
+})
+
 userRouter.use('/', async (req, res, next) => {
     console.log(req.session.loggedIn)
     if (!req.session.loggedIn){

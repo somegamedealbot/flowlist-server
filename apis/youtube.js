@@ -5,8 +5,6 @@ const {google} = require('googleapis');
 const { tryOperation, refreshWrapper } = require('../helpers/tryOperation');
 const { youtube_v3 } = require('googleapis/build/src/apis/youtube');
 const { getSongInfo } = require('./youtubeSearch');
-// const workerpool = require('workerpool');
-// const pool = workerpool.pool('./workerpool');
 
 require('dotenv').config();
 function parseCredentials({access_token, refresh_token, time}){
@@ -253,6 +251,59 @@ class Youtube{
         let data = await this.search(searchTokens);
         // let data = await pool.exec('youtubeSearchSongs', [searchTokens]);
         return data;
+    }
+
+    async createPlaylist(uid, accessToken, req, playlistData){
+        let client = this.createO2AuthClient(uid, accessToken, req);
+        let youtubeAPI = this.youtubeAPI();
+        const {playlistId} = (await youtubeAPI.playlists.insert({
+            auth: client,
+            part: 'snippet',
+            requestBody: {
+                snippet: {
+                    title: playlistData.title,
+                    description: playlistData.description
+                },
+                status : {
+                    privacyStatus: playlistData.private
+                }
+            },
+            key: process.env.YOUTUBE_API_KEY,
+            access_token: accessToken // comment this out to test refresh    
+        })).data;
+
+        // const inserts = [];
+        // for (let id of playlistData.tracks){
+        //     inserts.push(youtubeAPI.playlistItems.insert({
+        //         auth: client,
+        //         part: 'snippet',
+        //         requestBody: {
+        //             snippet: {
+        //                 playlistId: playlistId,
+        //                 resourceId: id
+        //             }
+        //         },
+        //         key: process.env.YOUTUBE_API_KEY,
+        //         access_token: accessToken // comment this out to test refresh    
+        //     }))
+        // }
+        // await Promise.all(inserts);
+        
+        for (let id of playlistData.tracks){
+            await youtubeAPI.playlistItems.insert({
+                auth: client,
+                part: 'snippet',
+                requestBody: {
+                    snippet: {
+                        playlistId: playlistId,
+                        resourceId: id
+                    }
+                },
+                key: process.env.YOUTUBE_API_KEY,
+                access_token: accessToken // comment this out to test refresh    
+            });
+        }
+        return playlistId;
     }
 }
 

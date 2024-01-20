@@ -40,6 +40,35 @@ function seperateIds(ids){
     return bundledIds;
 }
 
+function seperateUris(uris){
+    const bundledUris = [];
+    let count = 0;
+    const max = 100;
+
+    while (count < uris.length){
+        let bundleCount = 0;
+        const bundle = [];
+        for (let i = 0; i < max && count < uris.length; i++, count++){
+            bundle.push(uris[count]);
+        }
+        bundledUris.push(bundle);
+        // let combined = uris[count];
+        // count += 1;
+        // if (count >= uris.length){
+        //     bundledUris.push(combined);
+        // }
+        // else {
+        //     for (let i = 1; count < uris.length && i < max; i++, count++){
+        //         combined += ',' + uris[i];
+        //     }
+        //     bundledUris.push(combined);
+        // }
+    }
+
+    return bundledUris;
+}
+
+
 class Spotify{
 
     static tableName = 'spotifyInfo'
@@ -92,7 +121,7 @@ class Spotify{
             // let uid = result.rows[0].uid;
             // request spotify for fresh refresh token
     
-            var options = {
+            const options = {
                 method: 'post', 
                 url: 'https://accounts.spotify.com/api/token',
                 data: new URLSearchParams({
@@ -111,6 +140,18 @@ class Spotify{
             await singleDBQuery(`UPDATE public."${this.tableName}" SET spotify_access_token = $1, spotify_refresh_token = $2 WHERE uid = $3`,
                 [tokens.access_token, tokens.refresh_token, uid]
             );
+
+            // get user id
+            options.url = 'https://api.spotify.com/v1/me';
+            options.headers = {
+                'Authorization': 'Bearer ' + tokens.access_token
+            };
+            options.data = undefined;
+
+            const {id} = (await axios(options)).data;
+            console.log(id);
+            
+            // store id in database
 
         }, 'Unable to complete callback transaction with Spotify API');
 
@@ -217,16 +258,6 @@ class Spotify{
         return playlistsData
     }
 
-    static async convertPlaylist(playlistId){
-        let playlistData = refreshWrapper(async (newAccessToken) => {
-            if (newAccessToken){
-                accessToken = newAccessToken
-            };
-
-
-        })
-    }
-
     static async search(searchToken, accessToken, limit){
         if (searchToken.match(/deleted video/i)){
             return {
@@ -275,6 +306,37 @@ class Spotify{
         }, uid, Spotify, req);
 
         return results;
+    }
+
+    static async createPlaylist(uid, accessToken, req, playlistData){
+        refreshWrapper(async (newAccessToken) => {
+            if (newAccessToken){
+                accessToken = newAccessToken
+            };
+
+            const spotifyUid= '';
+            const body = {
+                name: playlistData.title,
+                description: playlistData.description,
+                public: playlistData.private,
+            }
+            const axiosInstance = axios.create({
+                baseURL: `https://api.spotify.com/v1/users/${spotifyUid}`,
+                headers: { 'Authorization': 'Bearer ' + accessToken}
+            });
+
+            const {playlistId} = (await axiosInstance.post('/playlists'), body).data;
+
+            const uriBundles = seperateUris(playlistData.tracks);
+            for (bundle of uriBundles){
+                await axiosInstance.post('/tracks', {
+                    playlist_id: playlistId,
+                    uris: bundle
+                });
+            };
+
+            return playlistId;
+        })
     }
 
 }
