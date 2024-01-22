@@ -247,7 +247,11 @@ class Youtube{
     }
 
     async searchTracks(uid, accessToken, req, tracksData){
-        const searchTokens = tracksData.searchTokens;
+        const searchTokens = [];
+        for (const track of tracksData){
+            if (!track.deleted)
+            searchTokens.push(track.searchToken)
+        }
         let data = await this.search(searchTokens);
         // let data = await pool.exec('youtubeSearchSongs', [searchTokens]);
         return data;
@@ -265,7 +269,7 @@ class Youtube{
                     description: playlistData.description
                 },
                 status : {
-                    privacyStatus: playlistData.private
+                    privacyStatus: playlistData.private ? 'private' : 'public'
                 }
             },
             key: process.env.YOUTUBE_API_KEY,
@@ -287,7 +291,7 @@ class Youtube{
         //         access_token: accessToken // comment this out to test refresh    
         //     }))
         // }
-        // await Promise.all(inserts);
+         // await Promise.all(inserts);
         
         for (let id of playlistData.tracks){
             await youtubeAPI.playlistItems.insert({

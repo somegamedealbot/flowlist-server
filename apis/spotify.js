@@ -46,10 +46,12 @@ function seperateUris(uris){
     const max = 100;
 
     while (count < uris.length){
-        let bundleCount = 0;
+        // let bundleCount = 0;
         const bundle = [];
         for (let i = 0; i < max && count < uris.length; i++, count++){
-            bundle.push(uris[count]);
+            if (!uris[count].deleted){
+                bundle.push(uris[count].convertToken);
+            }
         }
         bundledUris.push(bundle);
         // let combined = uris[count];
@@ -146,12 +148,15 @@ class Spotify{
             options.headers = {
                 'Authorization': 'Bearer ' + tokens.access_token
             };
+            options.method = 'get';
             options.data = undefined;
 
             const {id} = (await axios(options)).data;
             console.log(id);
             
-            // store id in database
+            await singleDBQuery(`UPDATE public."${this.tableName}" SET spotify_uid = $1 WHERE uid = $2`,
+                [id, uid]
+            );
 
         }, 'Unable to complete callback transaction with Spotify API');
 
@@ -314,29 +319,45 @@ class Spotify{
                 accessToken = newAccessToken
             };
 
-            const spotifyUid= '';
+            const spotifyUid = (await singleDBQuery(`SELECT spotify_uid FROM public."${Spotify.tableName}" WHERE uid = $1`,
+                [uid]
+            )).rows[0].spotify_uid;
+
             const body = {
                 name: playlistData.title,
                 description: playlistData.description,
-                public: playlistData.private,
+                public: playlistData.private ? false : true,
             }
+            
             const axiosInstance = axios.create({
                 baseURL: `https://api.spotify.com/v1/users/${spotifyUid}`,
-                headers: { 'Authorization': 'Bearer ' + accessToken}
+                headers: { 
+                    'Authorization': 'Bearer ' + accessToken,
+                    'Content-Type': 'application/json'
+                }
             });
 
-            const {playlistId} = (await axiosInstance.post('/playlists'), body).data;
+            const playlistId= (await axiosInstance.post('/playlists', body)).data.id;
 
             const uriBundles = seperateUris(playlistData.tracks);
-            for (bundle of uriBundles){
-                await axiosInstance.post('/tracks', {
-                    playlist_id: playlistId,
+
+            const addAxios = axios.create({
+                baseURL: `https://api.spotify.com/v1/playlists/${playlistId}`,
+                headers: { 
+                    'Authorization': 'Bearer ' + accessToken,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            for (const bundle of uriBundles){
+                await addAxios.post('/tracks', {
+                    // playlist_id: playlistId,
                     uris: bundle
                 });
             };
 
             return playlistId;
-        })
+        }, uid, Spotify, req);
     }
 
 }

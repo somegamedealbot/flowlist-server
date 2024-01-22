@@ -150,6 +150,21 @@ userRouter.post('/convert-data', errorHandleWrapper(async(req, res, next) => {
     );
     return result;
 
+}));
+
+userRouter.post('/convert', errorHandleWrapper(async(req, res, next) => {
+    const type = req.query.type;
+    const convertData = req.body;
+
+    let id = await services[type].createPlaylist(
+        req.session.uid, 
+        serviceAccessToken(type, req.session), 
+        req, convertData
+    );
+
+    return {
+        id: id
+    };
 }))
 
 module.exports = userRouter;
