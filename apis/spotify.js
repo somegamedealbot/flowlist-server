@@ -314,7 +314,7 @@ class Spotify{
     }
 
     static async createPlaylist(uid, accessToken, req, playlistData){
-        refreshWrapper(async (newAccessToken) => {
+        return await refreshWrapper(async (newAccessToken) => {
             if (newAccessToken){
                 accessToken = newAccessToken
             };

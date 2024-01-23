@@ -247,11 +247,12 @@ class Youtube{
     }
 
     async searchTracks(uid, accessToken, req, tracksData){
-        const searchTokens = [];
-        for (const track of tracksData){
-            if (!track.deleted)
-            searchTokens.push(track.searchToken)
-        }
+        // tracksData.searchTokens;
+        const searchTokens = tracksData.searchTokens;
+        // for (const track of tracksData){
+        //     if (!track.deleted)
+        //     searchTokens.push(track.searchToken)
+        // }
         let data = await this.search(searchTokens);
         // let data = await pool.exec('youtubeSearchSongs', [searchTokens]);
         return data;
@@ -260,9 +261,20 @@ class Youtube{
     async createPlaylist(uid, accessToken, req, playlistData){
         let client = this.createO2AuthClient(uid, accessToken, req);
         let youtubeAPI = this.youtubeAPI();
-        const {playlistId} = (await youtubeAPI.playlists.insert({
+
+        const trackIds = [];
+        for (const track of playlistData.tracks){
+            if (track.deleted === false){
+                trackIds.push(track.convertToken);
+            }
+        }
+
+        console.log(playlistData.tracks);
+        console.log(trackIds);
+
+        const playlistId = (await youtubeAPI.playlists.insert({
             auth: client,
-            part: 'snippet',
+            part: 'snippet,status',
             requestBody: {
                 snippet: {
                     title: playlistData.title,
@@ -274,7 +286,7 @@ class Youtube{
             },
             key: process.env.YOUTUBE_API_KEY,
             access_token: accessToken // comment this out to test refresh    
-        })).data;
+        })).data.id;
 
         // const inserts = [];
         // for (let id of playlistData.tracks){
@@ -293,14 +305,17 @@ class Youtube{
         // }
          // await Promise.all(inserts);
         
-        for (let id of playlistData.tracks){
+        for (let id of trackIds){
             await youtubeAPI.playlistItems.insert({
                 auth: client,
                 part: 'snippet',
                 requestBody: {
                     snippet: {
                         playlistId: playlistId,
-                        resourceId: id
+                        resourceId: {
+                            kind: 'youtube#video',
+                            videoId: id
+                        }
                     }
                 },
                 key: process.env.YOUTUBE_API_KEY,
