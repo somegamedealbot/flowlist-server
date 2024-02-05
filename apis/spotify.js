@@ -360,6 +360,38 @@ class Spotify{
         }, uid, Spotify, req);
     }
 
+    static async searchTrack(uid, accessToken, req, term){
+        let results = await refreshWrapper(async (newAccessToken) => {
+            if (newAccessToken){
+                accessToken = newAccessToken
+            }
+
+            return await this.search(term, accessToken, 5)
+        }, uid, Spotify, req);
+
+        return results;
+    }
+
+    static async lookup(uid, accessToken, req, id){
+        let results = await refreshWrapper(async (newAccessToken) => {
+            if (newAccessToken){
+                accessToken = newAccessToken
+            }
+
+            let data = (await axios.get(`https://api.spotify.com/v1/tracks/${id}`, {
+                headers: { 
+                    'Authorization': 'Bearer ' + accessToken,
+                    'Content-Type': 'application/json'
+                }
+            })).data
+
+            return data
+            
+        }, uid, Spotify, req);
+
+        return results;
+    }
+
 }
 
 module.exports = Spotify;

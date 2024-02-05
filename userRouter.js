@@ -152,6 +152,30 @@ userRouter.post('/convert-data', errorHandleWrapper(async(req, res, next) => {
 
 }));
 
+userRouter.get('/search', errorHandleWrapper(async(req, res, next) => {
+    const type = req.query.type;
+    const term = req.query.term;
+
+    let track = await services[type].search(
+        req.session.uid,
+        serviceAccessToken(type, req.session),
+        req,
+        term
+    )
+}));
+
+userRouter.get('/lookup', errorHandleWrapper(async(req, res, next) => {
+    const type = req.query.type;
+    const id = req.query.id;
+
+    let track = await services[type].searchTracks(
+        req.session.uid,
+        serviceAccessToken(type, req.session),
+        req,
+        id
+    )
+}));
+
 userRouter.post('/convert', errorHandleWrapper(async(req, res, next) => {
     const type = req.query.type;
     const convertData = req.body;

@@ -287,23 +287,6 @@ class Youtube{
             key: process.env.YOUTUBE_API_KEY,
             access_token: accessToken // comment this out to test refresh    
         })).data.id;
-
-        // const inserts = [];
-        // for (let id of playlistData.tracks){
-        //     inserts.push(youtubeAPI.playlistItems.insert({
-        //         auth: client,
-        //         part: 'snippet',
-        //         requestBody: {
-        //             snippet: {
-        //                 playlistId: playlistId,
-        //                 resourceId: id
-        //             }
-        //         },
-        //         key: process.env.YOUTUBE_API_KEY,
-        //         access_token: accessToken // comment this out to test refresh    
-        //     }))
-        // }
-         // await Promise.all(inserts);
         
         for (let id of trackIds){
             await youtubeAPI.playlistItems.insert({
@@ -323,6 +306,22 @@ class Youtube{
             });
         }
         return playlistId;
+    }
+
+    async searchTracks(uid, accessToken, req, term){
+        return await this.getSongInfo(term, 5);
+    }
+
+    async lookup(uid, accessToken, req, id){
+        let client = this.createO2AuthClient(uid, accessToken, req);
+        let youtubeAPI = this.youtubeAPI();
+
+        return (await youtubeAPI.videos.list({
+            part: 'id',
+            id: id,
+            keyey: process.env.YOUTUBE_API_KEY,
+            access_token: accessToken // comment this out to test refresh    
+        })).data
     }
 }
 
