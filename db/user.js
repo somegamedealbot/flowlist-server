@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
 const connection = require('./connect');
 const { PutItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
-const client = require('./dynamo-client').default
+const createClient = require('./dynamo-client').default
 import { uuidv7 } from 'uuidv7';
 
 async function hashPassword(password){
@@ -54,7 +54,8 @@ class User{
         let password = await hashPassword(accountInfo.password);
         
         let result = await this.tryOperation(async () => {
-
+            
+            let client = createClient();
             let checkQuery = new QueryCommand({
                 TableName: 'UserInfo',
                 KeyConditionExpression: "Email = :e",
@@ -105,6 +106,7 @@ class User{
     static async verifyAccountInfo(accountInfo){
         return await this.tryOperation(async () => {
 
+            let client = createClient();
             let query = QueryCommand({
                 TableName: "UserInfo",
                 KeyConditionExpression: 'Emails = :e',
