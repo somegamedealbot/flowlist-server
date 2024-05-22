@@ -1,6 +1,6 @@
 const { default: axios } = require('axios');
-const { singleDBQuery } = require('../db/connect');
 const { tryOperation, refreshWrapper } = require('../helpers/tryOperation');
+const { retrieveToken, updateTokens } = require('../helpers/cmd-helper');
 const apiPlaylistURI = 'https://api.spotify.com/v1/me/playlists?';
 const apiGetPlaylistUri = 'https://api.spotify.com/v1/playlists'
 
@@ -75,6 +75,8 @@ class Spotify{
 
     static tableName = 'spotifyInfo'
 
+    static service = 'Spotify'
+
     static async generateUrl(uid){
         let scope = 'playlist-read-private user-read-private user-read-email user-library-read user-library-modify playlist-modify-public playlist-modify-private';
         const state = generateAuthKey(16);
@@ -88,8 +90,11 @@ class Spotify{
         });
         
         await tryOperation(async () => {
-            return await singleDBQuery(`UPDATE public."${this.tableName}" SET state = $1 WHERE uid = $2`,
-                [state, uid]);
+
+            await updateTokens(uid, this.service, {
+                State: state,
+            })
+
         }, 'Something went wrong when communicating with database');
 
         const url = "https://accounts.spotify.com/authorize?" + params.toString();
@@ -98,12 +103,9 @@ class Spotify{
     }
 
     static async getAccessToken(uid){
-        return await tryOperation(async () => {
-            let creds = await singleDBQuery(`SELECT spotify_access_token FROM public."${this.tableName}" WHERE uid = $1`, 
-                [uid]
-            );
-            
-            return creds.rows[0].spotify_access_token;
+        return await tryOperation(async () => {            
+            let accessToken = retrieveToken(uid, this.service)
+            return accessToken
         });
     }
 
@@ -112,9 +114,13 @@ class Spotify{
         const state = queryData.state || null;
 
         await tryOperation(async () => {
-            let result = await singleDBQuery(`SELECT uid FROM public."${this.tableName}" WHERE state = $1`,
-            [state]);
 
+            if (state != state){
+                const err = new Error('state does not match from request')
+            }
+
+            let state = await retrieveToken(uid, this.service, "State")
+            
             if (result.rowCount === 0){
                 const err = new Error('Invalid state given from request');
                 err.status = 403;
@@ -138,11 +144,12 @@ class Spotify{
                 json: true
             };
             const tokens = (await axios(options)).data;
-            
-            await singleDBQuery(`UPDATE public."${this.tableName}" SET spotify_access_token = $1, spotify_refresh_token = $2 WHERE uid = $3`,
-                [tokens.access_token, tokens.refresh_token, uid]
-            );
 
+            await updateTokens(uid, this.service, {
+                AccessToken: tokens.access_token,
+                RefreshToken: tokens.refresh_token
+            });
+            
             // get user id
             options.url = 'https://api.spotify.com/v1/me';
             options.headers = {
@@ -154,9 +161,9 @@ class Spotify{
             const {id} = (await axios(options)).data;
             console.log(id);
             
-            await singleDBQuery(`UPDATE public."${this.tableName}" SET spotify_uid = $1 WHERE uid = $2`,
-                [id, uid]
-            );
+            await updateTokens(uid, this.service, {
+                Id: id
+            });
 
         }, 'Unable to complete callback transaction with Spotify API');
 
@@ -165,12 +172,8 @@ class Spotify{
     static async refreshToken(uid, req){
         let access_token = await tryOperation(async () => {
             // if (!refreshToken){
-            let result = await singleDBQuery(`SELECT spotify_refresh_token FROM public."${this.tableName}" WHERE uid = $1 `,
-                [uid]
-            );
-            let refreshToken = result.rows[0].spotify_refresh_token;
-                
-            // }
+
+            let refreshToken = await retrieveToken(uid, this.service, "RefreshToken")
 
             const creds = await axios.post('https://accounts.spotify.com/api/token', 
             {
@@ -187,9 +190,10 @@ class Spotify{
 
             const {access_token} = creds.data;
             req.session.spotify_access_token = access_token;
-            await singleDBQuery(`UPDATE public."${this.tableName}" SET spotify_access_token = $1, expiration_time = now()::timestamp + interval '1 hour';`,
-                [access_token]
-            );
+
+            await updateTokens(uid, this.service, {
+                AccessToken: access_token
+            });
 
             return access_token;
 
@@ -319,9 +323,8 @@ class Spotify{
                 accessToken = newAccessToken
             };
 
-            const spotifyUid = (await singleDBQuery(`SELECT spotify_uid FROM public."${Spotify.tableName}" WHERE uid = $1`,
-                [uid]
-            )).rows[0].spotify_uid;
+             
+            const spotifyUid = retrieveToken(uid, this.service, "Id");
 
             const body = {
                 name: playlistData.title,
