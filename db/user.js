@@ -3,6 +3,9 @@ const connection = require('./connect');
 const { PutItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const createClient = require('./dynamo-client').default
 import { uuidv7 } from 'uuidv7';
+require('dotenv').config();
+
+TABLE_NAME = process.env.TABLE_NAME
 
 async function hashPassword(password){
     let salt = await bcrypt.genSalt(10);
@@ -57,7 +60,7 @@ class User{
             
             let client = createClient();
             let checkQuery = new QueryCommand({
-                TableName: 'UserInfo',
+                TableName: TABLE_NAME,
                 KeyConditionExpression: "Email = :e",
                 ExpressionAttributeValues: {
                     ":e": accountInfo.email
@@ -70,7 +73,7 @@ class User{
             }
 
             let cmd = new PutItemCommand({
-                TableName: 'UserInfo',
+                TableName: TABLE_NAME,
                 Item: {
                     "Uid": {
                         S: uuidv7()
@@ -108,7 +111,7 @@ class User{
 
             let client = createClient();
             let query = QueryCommand({
-                TableName: "UserInfo",
+                TableName: TABLE_NAME,
                 KeyConditionExpression: 'Emails = :e',
                 ExpressionAttributeValues: {
                     ":e": accountInfo.email
