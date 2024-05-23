@@ -1,8 +1,10 @@
-import { CreateTableCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
+const { CreateTableCommand, DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { UpdateTableCommand } = require("@aws-sdk/client-dynamodb/dist-cjs");
+require('dotenv').config();
 
 const client = new DynamoDBClient({
     // use for local database development
-    region: 'us-east-2',
+    region: process.env.DB_REGION,
     credentials: {
         accessKeyId: 'FakeKey',
         secretAccessKey: 'FakeAccessKey',
@@ -23,6 +25,7 @@ const createTable = async () => {
         Spotify:
             AccessToken
             RefreshToken
+            State
         Youtube:
             AccessToken
             RefreshToken
@@ -37,6 +40,10 @@ const createTable = async () => {
         AttributeDefinitions: [
           {
             AttributeName: "Uid",
+            AttributeType: "S"
+          },
+          {
+            AttributeName: "Email",
             AttributeType: "S",
           },
         ],
@@ -50,6 +57,25 @@ const createTable = async () => {
           ReadCapacityUnits: 5,
           WriteCapacityUnits: 5,
         },
+        GlobalSecondaryIndexes: [
+          {
+            IndexName: process.env.INDEX_NAME, 
+            KeySchema: [
+              {
+                AttributeName: 'Email',
+                KeyType: "HASH"
+              }
+            ],
+            Projection: {
+              ProjectionType: "INCLUDE",
+              NonKeyAttributes: ['Password']
+            },
+            ProvisionedThroughput: {
+              ReadCapacityUnits: 5,
+              WriteCapacityUnits: 5,
+            }
+          }
+        ],
     });
 
     try {
