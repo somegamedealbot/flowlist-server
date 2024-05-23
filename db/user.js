@@ -1,8 +1,9 @@
 const bcrypt = require('bcrypt');
 const connection = require('./connect');
 const { PutItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
-const createClient = require('./dynamo-client').default
-import { uuidv7 } from 'uuidv7';
+const { createClient } = require('./dynamo-client')
+let { uuidv7 } = require('uuidv7')
+// import { uuidv7 } from 'uuidv7';
 require('dotenv').config();
 
 TABLE_NAME = process.env.TABLE_NAME
@@ -35,7 +36,7 @@ class User{
 
     static errorHandle(errStr){
         let errMsg, status = this.errorMapping[errStr]
-        error = new Error(errMsg)
+        let error = new Error(errMsg)
         error.status = status 
     }
 
@@ -61,9 +62,12 @@ class User{
             let client = createClient();
             let checkQuery = new QueryCommand({
                 TableName: TABLE_NAME,
+                IndexName: process.env.INDEX_NAME,
                 KeyConditionExpression: "Email = :e",
                 ExpressionAttributeValues: {
-                    ":e": accountInfo.email
+                    ":e": {
+                        "S": accountInfo.email
+                    }
                 }
             })
             
@@ -110,11 +114,14 @@ class User{
         return await this.tryOperation(async () => {
 
             let client = createClient();
-            let query = QueryCommand({
+            let query = new QueryCommand({
                 TableName: TABLE_NAME,
-                KeyConditionExpression: 'Emails = :e',
+                IndexName: process.env.INDEX_NAME,
+                KeyConditionExpression: 'Email = :e',
                 ExpressionAttributeValues: {
-                    ":e": accountInfo.email
+                    ":e": {
+                        "S": accountInfo.email
+                    }
                 }
             })
 
@@ -125,10 +132,9 @@ class User{
             }
 
             let item = queryRes.Items[0]
-            let uid = item.Uid
-            let password = item.Password
-            
-            let equal = await bcrypt.compare(password, password);
+            let uid = item.Uid.S
+            let password = item.Password.S
+            let equal = await bcrypt.compare(accountInfo.password, password);
             
             if (!equal){
                 this.errorHandle('invalid_login')

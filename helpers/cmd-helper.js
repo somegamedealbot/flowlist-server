@@ -3,14 +3,16 @@
  */
 
 const { UpdateItemCommand, GetItemCommand } = require('@aws-sdk/client-dynamodb')
-const createClient = require('../db/dynamo-client').default
+const { createClient } = require('../db/dynamo-client');
 require('dotenv').config();
 const TABLE_NAME = process.env.TABLE_NAME
 
 const InfoMapping = {
-    'RefreshToken': [':rt', 'S', '#RT'],
-    'AccessToken': [':at', 'S', '#AT'],
-    'ExpirationTime': [':et', 'N', '#ET']
+    'RefreshToken': [':r', 'S', '#RT'],
+    'AccessToken': [':a', 'S', '#AT'],
+    'ExpirationTime': [':e', 'N', '#ET'],
+    'State': [':s', 'S', '#S'],
+    'Id': [':i', 'S', '#I']
 }
 
 /**
@@ -22,17 +24,22 @@ const InfoMapping = {
 const buildUpdateAttributes = (tokenInfo, service) => {
     let expAttrName = {}
     let expAttrValues = {}
-    let updateExp = 'set'
+    let updateExpArr = []
+    
     for (info in tokenInfo){
         if (info !== null){
-            let valueName, type, attrName = InfoMapping[item]
-            expAttrName[attrName] = info
-            ExpressionAttrValues[valueName] = {}[type] = tokenInfo[info]
-            updateExp = updateExp.concat(' ', attrName, ' = ', valueName)
+            let [valueName, type, attrName] = InfoMapping[info]
+            expAttrName[attrName] = service.concat('.',info)
+            let attrValue = {}
+            attrValue[type] = tokenInfo[info]
+            expAttrValues[valueName] = attrValue
+            updateExpArr.push(' '.concat(attrName, ' = ', valueName))
         }
     }
     
-    return expAttrName, expAttrValues, updateExp
+    let updateExp = 'set'.concat(updateExpArr.join(','))
+
+    return [expAttrName, expAttrValues, updateExp]
 }
 
 /**
@@ -41,21 +48,25 @@ const buildUpdateAttributes = (tokenInfo, service) => {
  * @param {*} service service name
  * @param {*} tokenInfo infomation about tokens
  */
-const updateTokens = async (uid, service, tokenInfo={RefreshToken, AccessToken: null, ExpirationTime: null}) => {
-
-    let names, values, updateExp = buildUpdateAttributes(tokenInfo, service)    
+const updateTokens = async (uid, service, tokenInfo={RefreshToken: null, AccessToken: null, ExpirationTime: null, State: null}) => {
+    console.log(uid)
+    let [names, values, updateExp] = buildUpdateAttributes(tokenInfo, service)    
     let client = createClient()
-
+    
     let cmd = new UpdateItemCommand({
         TableName: TABLE_NAME,
         ExpressionAttributeNames: names,
-        ExpressionAttrValues: values,
+        ExpressionAttributeValues: values,
         UpdateExpression: updateExp,
         Key: {
-            "Uid": uid
+            "Uid": {
+                "S": uid
+            }
         },
         ReturnValues: "UPDATED_NEW"
     })
+    console.log(cmd)
+
     await client.send(cmd)
 }
 
@@ -82,7 +93,8 @@ const retrieveToken = async (uid, service, type="AccessToken") => {
     })
 
     let res = await client.send(cmd)
-    return res.Item[tokenName]
+    console.log
+    return res.Item[tokenName] ? res.Item[tokenName].S : undefined
 }
 
 module.exports = {
