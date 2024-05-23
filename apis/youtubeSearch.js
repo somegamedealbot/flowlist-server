@@ -23,15 +23,14 @@ function checkRenderers(renderers){
 }
 
 async function getSongInfo(term, alterantives){
-    // return new Promise ((resolve, rejects) => {
         
     const searchUrl = new URL("results?", "https://www.youtube.com/");
-
     const params = new URLSearchParams({
         search_query: term,
         sp: "EgIQAQ%253D%253D"
     })
     const url = searchUrl.toString() + params.toString();
+
     const options = {
         headers: {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -39,7 +38,6 @@ async function getSongInfo(term, alterantives){
         }
     }
     let response = await axios.get(url, options);
-    // console.log(response.data);
     const document = response.data;
     // var content = document.match(/var ytInitialData = {.*\"sectionListRenderer\":({\"contents\":\[{.*},.*\]}).*};</)[1];
     var content = document.match(/var ytInitialData = ({.*});</)[1];

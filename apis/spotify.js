@@ -1,6 +1,6 @@
 const { default: axios } = require('axios');
-const { singleDBQuery } = require('../db/connect');
 const { tryOperation, refreshWrapper } = require('../helpers/tryOperation');
+const { retrieveToken, updateTokens } = require('../helpers/cmd-helper');
 const apiPlaylistURI = 'https://api.spotify.com/v1/me/playlists?';
 const apiGetPlaylistUri = 'https://api.spotify.com/v1/playlists'
 
@@ -40,9 +40,42 @@ function seperateIds(ids){
     return bundledIds;
 }
 
+function seperateUris(uris){
+    const bundledUris = [];
+    let count = 0;
+    const max = 100;
+
+    while (count < uris.length){
+        // let bundleCount = 0;
+        const bundle = [];
+        for (let i = 0; i < max && count < uris.length; i++, count++){
+            if (!uris[count].deleted){
+                bundle.push(uris[count].convertToken);
+            }
+        }
+        bundledUris.push(bundle);
+        // let combined = uris[count];
+        // count += 1;
+        // if (count >= uris.length){
+        //     bundledUris.push(combined);
+        // }
+        // else {
+        //     for (let i = 1; count < uris.length && i < max; i++, count++){
+        //         combined += ',' + uris[i];
+        //     }
+        //     bundledUris.push(combined);
+        // }
+    }
+
+    return bundledUris;
+}
+
+
 class Spotify{
 
     static tableName = 'spotifyInfo'
+
+    static service = 'Spotify'
 
     static async generateUrl(uid){
         let scope = 'playlist-read-private user-read-private user-read-email user-library-read user-library-modify playlist-modify-public playlist-modify-private';
@@ -57,8 +90,11 @@ class Spotify{
         });
         
         await tryOperation(async () => {
-            return await singleDBQuery(`UPDATE public."${this.tableName}" SET state = $1 WHERE uid = $2`,
-                [state, uid]);
+
+            await updateTokens(uid, this.service, {
+                State: state,
+            })
+
         }, 'Something went wrong when communicating with database');
 
         const url = "https://accounts.spotify.com/authorize?" + params.toString();
@@ -67,12 +103,9 @@ class Spotify{
     }
 
     static async getAccessToken(uid){
-        return await tryOperation(async () => {
-            let creds = await singleDBQuery(`SELECT spotify_access_token FROM public."${this.tableName}" WHERE uid = $1`, 
-                [uid]
-            );
-            
-            return creds.rows[0].spotify_access_token;
+        return await tryOperation(async () => {            
+            let accessToken = retrieveToken(uid, this.service)
+            return accessToken
         });
     }
 
@@ -81,9 +114,13 @@ class Spotify{
         const state = queryData.state || null;
 
         await tryOperation(async () => {
-            let result = await singleDBQuery(`SELECT uid FROM public."${this.tableName}" WHERE state = $1`,
-            [state]);
 
+            if (state != state){
+                const err = new Error('state does not match from request')
+            }
+
+            let state = await retrieveToken(uid, this.service, "State")
+            
             if (result.rowCount === 0){
                 const err = new Error('Invalid state given from request');
                 err.status = 403;
@@ -92,7 +129,7 @@ class Spotify{
             // let uid = result.rows[0].uid;
             // request spotify for fresh refresh token
     
-            var options = {
+            const options = {
                 method: 'post', 
                 url: 'https://accounts.spotify.com/api/token',
                 data: new URLSearchParams({
@@ -107,10 +144,26 @@ class Spotify{
                 json: true
             };
             const tokens = (await axios(options)).data;
+
+            await updateTokens(uid, this.service, {
+                AccessToken: tokens.access_token,
+                RefreshToken: tokens.refresh_token
+            });
             
-            await singleDBQuery(`UPDATE public."${this.tableName}" SET spotify_access_token = $1, spotify_refresh_token = $2 WHERE uid = $3`,
-                [tokens.access_token, tokens.refresh_token, uid]
-            );
+            // get user id
+            options.url = 'https://api.spotify.com/v1/me';
+            options.headers = {
+                'Authorization': 'Bearer ' + tokens.access_token
+            };
+            options.method = 'get';
+            options.data = undefined;
+
+            const {id} = (await axios(options)).data;
+            console.log(id);
+            
+            await updateTokens(uid, this.service, {
+                Id: id
+            });
 
         }, 'Unable to complete callback transaction with Spotify API');
 
@@ -119,12 +172,8 @@ class Spotify{
     static async refreshToken(uid, req){
         let access_token = await tryOperation(async () => {
             // if (!refreshToken){
-            let result = await singleDBQuery(`SELECT spotify_refresh_token FROM public."${this.tableName}" WHERE uid = $1 `,
-                [uid]
-            );
-            let refreshToken = result.rows[0].spotify_refresh_token;
-                
-            // }
+
+            let refreshToken = await retrieveToken(uid, this.service, "RefreshToken")
 
             const creds = await axios.post('https://accounts.spotify.com/api/token', 
             {
@@ -141,9 +190,10 @@ class Spotify{
 
             const {access_token} = creds.data;
             req.session.spotify_access_token = access_token;
-            await singleDBQuery(`UPDATE public."${this.tableName}" SET spotify_access_token = $1, expiration_time = now()::timestamp + interval '1 hour';`,
-                [access_token]
-            );
+
+            await updateTokens(uid, this.service, {
+                AccessToken: access_token
+            });
 
             return access_token;
 
@@ -217,16 +267,6 @@ class Spotify{
         return playlistsData
     }
 
-    static async convertPlaylist(playlistId){
-        let playlistData = refreshWrapper(async (newAccessToken) => {
-            if (newAccessToken){
-                accessToken = newAccessToken
-            };
-
-
-        })
-    }
-
     static async search(searchToken, accessToken, limit){
         if (searchToken.match(/deleted video/i)){
             return {
@@ -271,6 +311,84 @@ class Spotify{
             }
             combinedResult.tracks = await Promise.all(reqs);
             return combinedResult;
+            
+        }, uid, Spotify, req);
+
+        return results;
+    }
+
+    static async createPlaylist(uid, accessToken, req, playlistData){
+        return await refreshWrapper(async (newAccessToken) => {
+            if (newAccessToken){
+                accessToken = newAccessToken
+            };
+
+             
+            const spotifyUid = retrieveToken(uid, this.service, "Id");
+
+            const body = {
+                name: playlistData.title,
+                description: playlistData.description,
+                public: playlistData.private ? false : true,
+            }
+            
+            const axiosInstance = axios.create({
+                baseURL: `https://api.spotify.com/v1/users/${spotifyUid}`,
+                headers: { 
+                    'Authorization': 'Bearer ' + accessToken,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const playlistId= (await axiosInstance.post('/playlists', body)).data.id;
+
+            const uriBundles = seperateUris(playlistData.tracks);
+
+            const addAxios = axios.create({
+                baseURL: `https://api.spotify.com/v1/playlists/${playlistId}`,
+                headers: { 
+                    'Authorization': 'Bearer ' + accessToken,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            for (const bundle of uriBundles){
+                await addAxios.post('/tracks', {
+                    // playlist_id: playlistId,
+                    uris: bundle
+                });
+            };
+
+            return playlistId;
+        }, uid, Spotify, req);
+    }
+
+    static async searchTrack(uid, accessToken, req, term){
+        let results = await refreshWrapper(async (newAccessToken) => {
+            if (newAccessToken){
+                accessToken = newAccessToken
+            }
+
+            return await this.search(term, accessToken, 5)
+        }, uid, Spotify, req);
+
+        return results;
+    }
+
+    static async lookup(uid, accessToken, req, id){
+        let results = await refreshWrapper(async (newAccessToken) => {
+            if (newAccessToken){
+                accessToken = newAccessToken
+            }
+
+            let data = (await axios.get(`https://api.spotify.com/v1/tracks/${id}`, {
+                headers: { 
+                    'Authorization': 'Bearer ' + accessToken,
+                    'Content-Type': 'application/json'
+                }
+            })).data
+
+            return data
             
         }, uid, Spotify, req);
 
