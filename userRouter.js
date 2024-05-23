@@ -24,6 +24,12 @@ const serviceAccessToken = (service, session) => {
     }
 }
 
+userRouter.use((err, req, res, next) => {
+    console.error(err);
+    res.status(500)
+    res.send('Internal Server Error');
+})
+
 userRouter.use('/', async (req, res, next) => {
     console.log(req.session.loggedIn)
     if (!req.session.loggedIn){
@@ -144,6 +150,45 @@ userRouter.post('/convert-data', errorHandleWrapper(async(req, res, next) => {
     );
     return result;
 
+}));
+
+userRouter.get('/search', errorHandleWrapper(async(req, res, next) => {
+    const type = req.query.type;
+    const term = req.query.term;
+
+    let track = await services[type].search(
+        req.session.uid,
+        serviceAccessToken(type, req.session),
+        req,
+        term
+    )
+}));
+
+userRouter.get('/lookup', errorHandleWrapper(async(req, res, next) => {
+    const type = req.query.type;
+    const id = req.query.id;
+
+    let track = await services[type].searchTracks(
+        req.session.uid,
+        serviceAccessToken(type, req.session),
+        req,
+        id
+    )
+}));
+
+userRouter.post('/convert', errorHandleWrapper(async(req, res, next) => {
+    const type = req.query.type;
+    const convertData = req.body;
+
+    let id = await services[type].createPlaylist(
+        req.session.uid, 
+        serviceAccessToken(type, req.session), 
+        req, convertData
+    );
+
+    return {
+        id: id
+    };
 }))
 
 module.exports = userRouter;

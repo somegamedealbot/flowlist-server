@@ -1,12 +1,10 @@
 
 const { default: axios } = require('axios');
-const { singleDBQuery } = require('../db/connect');
 const {google} = require('googleapis');
 const { tryOperation, refreshWrapper } = require('../helpers/tryOperation');
 const { youtube_v3 } = require('googleapis/build/src/apis/youtube');
 const { getSongInfo } = require('./youtubeSearch');
-// const workerpool = require('workerpool');
-// const pool = workerpool.pool('./workerpool');
+const { retrieveToken, updateTokens } = require('../helpers/cmd-helper')
 
 require('dotenv').config();
 function parseCredentials({access_token, refresh_token, time}){
@@ -31,7 +29,7 @@ function axiosSetup(accessToken){
 // EXTRACT (EPOCH FROM DateTime);
 
 class Youtube{
-    
+    service = 'Youtube'
     constructor(){ 
 
         this.oauth2Client = new google.auth.OAuth2(
@@ -119,9 +117,11 @@ class Youtube{
 
             let credentials = await this.oauth2Client.getToken(code);
             
-            await singleDBQuery(`UPDATE public."${Youtube.tableName}" SET youtube_access_token = $1, youtube_refresh_token = $2, expiration_time = TO_TIMESTAMP($3) WHERE uid = $4`,
-                [credentials.tokens.access_token, credentials.tokens.refresh_token, Math.round(credentials.tokens.expiry_date / 1000), uid]
-            );
+            await updateTokens(uid, this.service, {
+                RefreshToken: credentials.tokens.refresh_token,
+                AccessToken: credentials.tokens.access_token,
+                ExpirationTime: credentials.tokens.expiry_date
+            })
 
         }, 'Unable to complete callback transaction with YouTube Data API');
 
@@ -129,24 +129,15 @@ class Youtube{
 
     async getAccessToken(uid){
         return await tryOperation(async () => {
-            let creds = await singleDBQuery(`SELECT youtube_access_token FROM public."${Youtube.tableName}" WHERE uid = $1`, 
-                [uid]
-            );
-            
-            return creds.rows[0].youtube_access_token;
+            let accessToken = await retrieveToken(uid, this.service)
+            return accessToken
         })
     }
 
     async refreshToken(uid, req){
         let access_token = await tryOperation(async () => {
 
-            // if (!refreshToken){
-            let result = await singleDBQuery(`SELECT youtube_refresh_token FROM public."${Youtube.tableName}" WHERE uid = $1 `,
-                [uid]
-            );
-            console.log(result.rows[0], uid);
-            let refreshToken = result.rows[0].youtube_refresh_token;   
-            // }
+            let refreshToken = retrieveToken(uid, this.service, "RefreshToken")   
 
             const creds = await axios.post('https://oauth2.googleapis.com/token', 
             {
@@ -157,9 +148,11 @@ class Youtube{
             });
 
             const {access_token} = creds.data;
-            await singleDBQuery(`UPDATE public."${Youtube.tableName}" SET youtube_access_token = $1, expiration_time = now()::timestamp + interval '1 hour';`,
-                [access_token]
-            );
+
+            await updateTokens(uid, this.service, {
+                AccessToken: access_token
+            });
+
             console.log(access_token);
             req.session.youtube_access_token = access_token;
             return creds.data;
@@ -249,10 +242,81 @@ class Youtube{
     }
 
     async searchTracks(uid, accessToken, req, tracksData){
+        // tracksData.searchTokens;
         const searchTokens = tracksData.searchTokens;
+        // for (const track of tracksData){
+        //     if (!track.deleted)
+        //     searchTokens.push(track.searchToken)
+        // }
         let data = await this.search(searchTokens);
         // let data = await pool.exec('youtubeSearchSongs', [searchTokens]);
         return data;
+    }
+
+    async createPlaylist(uid, accessToken, req, playlistData){
+        let client = this.createO2AuthClient(uid, accessToken, req);
+        let youtubeAPI = this.youtubeAPI();
+
+        const trackIds = [];
+        for (const track of playlistData.tracks){
+            if (track.deleted === false){
+                trackIds.push(track.convertToken);
+            }
+        }
+
+        console.log(playlistData.tracks);
+        console.log(trackIds);
+
+        const playlistId = (await youtubeAPI.playlists.insert({
+            auth: client,
+            part: 'snippet,status',
+            requestBody: {
+                snippet: {
+                    title: playlistData.title,
+                    description: playlistData.description
+                },
+                status : {
+                    privacyStatus: playlistData.private ? 'private' : 'public'
+                }
+            },
+            key: process.env.YOUTUBE_API_KEY,
+            access_token: accessToken // comment this out to test refresh    
+        })).data.id;
+        
+        for (let id of trackIds){
+            await youtubeAPI.playlistItems.insert({
+                auth: client,
+                part: 'snippet',
+                requestBody: {
+                    snippet: {
+                        playlistId: playlistId,
+                        resourceId: {
+                            kind: 'youtube#video',
+                            videoId: id
+                        }
+                    }
+                },
+                key: process.env.YOUTUBE_API_KEY,
+                access_token: accessToken // comment this out to test refresh    
+            });
+        }
+        return playlistId;
+    }
+
+    async searchTracks(uid, accessToken, req, term){
+        return await this.getSongInfo(term, 5);
+    }
+
+    async lookup(uid, accessToken, req, id){
+        let client = this.createO2AuthClient(uid, accessToken, req);
+        let youtubeAPI = this.youtubeAPI();
+
+        return (await youtubeAPI.videos.list({
+            part: 'id',
+            id: id,
+            keyey: process.env.YOUTUBE_API_KEY,
+            access_token: accessToken // comment this out to test refresh    
+        })).data
     }
 }
 

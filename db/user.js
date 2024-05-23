@@ -1,5 +1,12 @@
 const bcrypt = require('bcrypt');
 const connection = require('./connect');
+const { PutItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
+const { createClient } = require('./dynamo-client')
+let { uuidv7 } = require('uuidv7')
+// import { uuidv7 } from 'uuidv7';
+require('dotenv').config();
+
+TABLE_NAME = process.env.TABLE_NAME
 
 async function hashPassword(password){
     let salt = await bcrypt.genSalt(10);
@@ -21,6 +28,18 @@ class User{
         return err;
     }
 
+    static errorMapping = {
+        'invalid_login': ['Incorrect email or password given', 403],
+        'email_exists': ['Email already in use', 403],
+        default: ['Internal server error', 500]
+    }
+
+    static errorHandle(errStr){
+        let errMsg, status = this.errorMapping[errStr]
+        let error = new Error(errMsg)
+        error.status = status 
+    }
+
     static async tryOperation(op, errMessage){
         try {
             let res = await op();
@@ -31,15 +50,6 @@ class User{
             console.log(`${this.errPrefix}: ${err.message}`);
             console.log(err.stack);
             
-            if (errMessage?.includes('userInfo_email_key')){
-                const err = new Error('An account with this email already exists');
-                err.status = 400
-            }
-
-            if (!err.status){
-                err.status = 500;
-            }
-            
             throw err;
         }
     }
@@ -48,50 +58,89 @@ class User{
         let password = await hashPassword(accountInfo.password);
         
         let result = await this.tryOperation(async () => {
-            let res = await connection.transaction(
-                async (client) => {
-                    let uid = (await client.query('INSERT INTO public."userInfo"(uid,email,password) VALUES(DEFAULT, $1, $2) RETURNING uid',
-                        [accountInfo.email, password])).rows[0].uid;
-                    // console.log(data);
-                    // console.log(data.rows);
-                    // await client.query('INSERT INTO public."googleInfo"(uid), VALUES($1)',
-                    // [accountInfo.uid, ])
-                    console.log(uid);
-
-                    await client.query('INSERT INTO public."googleInfo"(uid) VALUES($1)', 
-                        [uid]);
-
-                    await client.query('INSERT INTO public."spotifyInfo"(uid) VALUES($1)', 
-                        [uid]);
+            
+            let client = createClient();
+            let checkQuery = new QueryCommand({
+                TableName: TABLE_NAME,
+                IndexName: process.env.INDEX_NAME,
+                KeyConditionExpression: "Email = :e",
+                ExpressionAttributeValues: {
+                    ":e": {
+                        "S": accountInfo.email
+                    }
                 }
-                
-            );
-            return res;
+            })
+            
+            let checkRes = await client.send(checkQuery)
+            if (checkRes.Count > 0){
+                this.errorHandle('email_exists')
+            }
+
+            let cmd = new PutItemCommand({
+                TableName: TABLE_NAME,
+                Item: {
+                    "Uid": {
+                        S: uuidv7()
+                    },
+                    "Email": {
+                        S: accountInfo.email
+                    },
+                    "Password": {
+                        S: password
+                    },
+                    "Youtube": {
+                        M: {
+                            "AccessToken": null,
+                            "RefreshToken": null
+                        }
+                    },
+                    "Spotify": {
+                        M: {
+                            "AccessToken": null,
+                            "RefreshToken": null
+                        }
+                    }
+                }
+            })
+
+            client.send(cmd)
+            return
+
         });
         return result;
     }
 
     static async verifyAccountInfo(accountInfo){
         return await this.tryOperation(async () => {
-            let result = await connection.singleDBQuery(
-                'SELECT uid, password From public."userInfo" WHERE email = $1',
-                [accountInfo.email]
-            );
-            
-            if (result.rowCount === 0){
-                throw this.invalidLogin();   
-            }
-            
-            let userInfo = result.rows[0];
-            
-            let equal = await bcrypt.compare(accountInfo.password, userInfo.password);
-            console.log(equal, accountInfo.password, userInfo.password);
 
+            let client = createClient();
+            let query = new QueryCommand({
+                TableName: TABLE_NAME,
+                IndexName: process.env.INDEX_NAME,
+                KeyConditionExpression: 'Email = :e',
+                ExpressionAttributeValues: {
+                    ":e": {
+                        "S": accountInfo.email
+                    }
+                }
+            })
+
+            let queryRes = await client.send(query)
+            
+            if (queryRes.Count == 0){
+                this.errorHandle('invalid_login')
+            }
+
+            let item = queryRes.Items[0]
+            let uid = item.Uid.S
+            let password = item.Password.S
+            let equal = await bcrypt.compare(accountInfo.password, password);
+            
             if (!equal){
-                throw this.invalidLogin();
+                this.errorHandle('invalid_login')
             }
 
-            return userInfo.uid;
+            return uid
         })
         
     }
