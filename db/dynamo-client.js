@@ -1,21 +1,8 @@
-import { CreateTableCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
+// import { CreateTableCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
-// export default client = new DynamoDBClient({
-//     // use for local database development
-//     region: 'us-east-2',
-//     credentials: {
-//         accessKeyId: 'FakeKey',
-//         secretAccessKey: 'FakeAccessKey',
-//     },
-//     endpoint: 'http://localhost:8000'
-      
-//       // region: REGION,
-//       // credentials: fromSSO({
-//       //     profile: "bill-dev"
-//       // })
-// });
+let {DynamoDBClient} = require('@aws-sdk/client-dynamodb')
 
-export default createClient = () => {
+const createClient = () => {
     return new DynamoDBClient({
         // use for local database development
         region: 'us-east-2',
@@ -30,4 +17,8 @@ export default createClient = () => {
           //     profile: "bill-dev"
           // })
     }) 
+}
+
+module.exports = {
+    createClient
 }
