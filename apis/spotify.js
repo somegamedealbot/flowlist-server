@@ -104,7 +104,7 @@ class Spotify{
 
     static async getAccessToken(uid){
         return await tryOperation(async () => {            
-            let accessToken = retrieveToken(uid, this.service)
+            let accessToken = await retrieveToken(uid, this.service)
             return accessToken
         });
     }
@@ -115,18 +115,19 @@ class Spotify{
 
         await tryOperation(async () => {
 
-            if (state != state){
-                const err = new Error('state does not match from request')
-            }
+            let retrievedState = await retrieveToken(uid, this.service, "State")
 
-            let state = await retrieveToken(uid, this.service, "State")
+            // if (result.rowCount === 0){
+            //     const err = new Error('Invalid state given from request');
+            //     err.status = 403;
+            //     throw err;
+            // }
             
-            if (result.rowCount === 0){
-                const err = new Error('Invalid state given from request');
-                err.status = 403;
+            if (state != retrievedState){
+                const err = new Error('state does not match from request')
                 throw err;
             }
-            // let uid = result.rows[0].uid;
+                // let uid = result.rows[0].uid;
             // request spotify for fresh refresh token
     
             const options = {
@@ -324,7 +325,7 @@ class Spotify{
             };
 
              
-            const spotifyUid = retrieveToken(uid, this.service, "Id");
+            const spotifyUid = await retrieveToken(uid, this.service, "Id");
 
             const body = {
                 name: playlistData.title,

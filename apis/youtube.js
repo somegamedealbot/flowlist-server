@@ -130,6 +130,7 @@ class Youtube{
     async getAccessToken(uid){
         return await tryOperation(async () => {
             let accessToken = await retrieveToken(uid, this.service)
+            // console.log('Retrieved Token:' + accessToken)
             return accessToken
         })
     }
@@ -137,8 +138,8 @@ class Youtube{
     async refreshToken(uid, req){
         let access_token = await tryOperation(async () => {
 
-            let refreshToken = retrieveToken(uid, this.service, "RefreshToken")   
-
+            let refreshToken = await retrieveToken(uid, this.service, "RefreshToken")   
+            // console.log("Refresh Token:" + refreshToken)
             const creds = await axios.post('https://oauth2.googleapis.com/token', 
             {
                 client_id: process.env.YOUTUBE_CLIENT_ID,
