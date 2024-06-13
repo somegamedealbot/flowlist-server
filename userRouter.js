@@ -2,12 +2,12 @@ const express = require('express');
 const errorHandleWrapper = require('./helpers/errorHandleWrapper');
 const Spotify = require('./apis/spotify');
 const Youtube = require('./apis/youtube');
-const workerpool = require('workerpool');
-const pool = workerpool.pool('./apis/workerpool.js', {
-    minWorkers: 1,
-    maxWorkers: 10,
-    workerType: 'thread'
-});
+// const workerpool = require('workerpool');
+// const pool = workerpool.pool('./apis/workerpool.js', {
+//     minWorkers: 1,
+//     maxWorkers: 10,
+//     workerType: 'thread'
+// });
 const userRouter = express.Router();
 
 const services = {
@@ -101,7 +101,7 @@ userRouter.post('/youtube-handle', errorHandleWrapper(async (req, res, next) => 
 }))
 
 userRouter.get('/spotify-playlists/', errorHandleWrapper(async (req, res, next) => {
-    const pageToken = req.query.pageToken;
+    const pageToken = req.query.pageToken ? req.query.pageToken + '&' + req.query.limit : undefined
     let playlistData = await Spotify.getPlaylists(req.session.uid, 
         req.session.spotify_access_token, req, pageToken);
     return playlistData;
@@ -109,7 +109,7 @@ userRouter.get('/spotify-playlists/', errorHandleWrapper(async (req, res, next) 
 
 userRouter.get('/youtube-playlists/', errorHandleWrapper(async(req, res, next) => {
     const pageToken = req.query.pageToken;
-    console.log('Provided token', req.session.youtube_access_token);    
+    // console.log('Provided token', req.session.youtube_access_token);    
     let playlistData = await Youtube.getPlaylists(req.session.uid, 
         req.session.youtube_access_token, req, pageToken);
     return playlistData;

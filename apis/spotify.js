@@ -248,13 +248,11 @@ class Spotify{
             if (newAccessToken){
                 accessToken = newAccessToken
             }
-            
+            console.log('nextPage link:', pageToken)
             let response = await axios({
                 method: 'get',
                 url: pageToken ? 
-                    pageToken + new URLSearchParams({
-                        limit: '50',
-                    }) : 
+                    pageToken : 
                     apiPlaylistURI + new URLSearchParams({
                         limit: '50',
                     }),

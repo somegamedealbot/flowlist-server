@@ -6,9 +6,7 @@ const cors = require('cors');
 const { User } = require('./db/user');
 const errorHandleWrapper = require('./helpers/errorHandleWrapper');
 const userRouter = require('./userRouter');
-const Spotify = require('./apis/spotify');
 require('./db/connect');
-const Youtube = require('./apis/youtube');
 // const bcrypt = require('bcrypt');
 
 const app = express();
