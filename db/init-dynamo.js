@@ -1,20 +1,22 @@
 const { CreateTableCommand, DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { UpdateTableCommand } = require("@aws-sdk/client-dynamodb/dist-cjs");
+const { fromSSO } = require("@aws-sdk/credential-providers");
+
 require('dotenv').config();
 
 const client = new DynamoDBClient({
     // use for local database development
     region: process.env.DB_REGION,
-    credentials: {
-        accessKeyId: 'FakeKey',
-        secretAccessKey: 'FakeAccessKey',
-    },
-    endpoint: 'http://localhost:8000'
+    // credentials: {
+    //     accessKeyId: 'FakeKey',
+    //     secretAccessKey: 'FakeAccessKey',
+    // },
+    // endpoint: 'http://localhost:8000'
       
       // region: REGION,
-      // credentials: fromSSO({
-      //     profile: "bill-dev"
-      // })
+    credentials: fromSSO({
+        profile: "bill-dev"
+    })
 });
 
 const createTable = async () => {

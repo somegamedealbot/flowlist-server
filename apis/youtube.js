@@ -304,9 +304,9 @@ class Youtube{
         return playlistId;
     }
 
-    async searchTracks(uid, accessToken, req, term){
-        return await this.getSongInfo(term, 5);
-    }
+    // async searchTrack(uid, accessToken, req, term){
+    //     return await this.getSongInfo(term, 5);
+    // }
 
     async lookup(uid, accessToken, req, id){
         let client = this.createO2AuthClient(uid, accessToken, req);

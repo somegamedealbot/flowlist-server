@@ -1,2 +1,6 @@
 \node_modules
 .env
+db/dyanmo-test.js
+db/init-dynamo.js
+db/tokens.js
+db/test.js
