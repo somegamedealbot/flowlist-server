@@ -120,7 +120,7 @@ class Youtube{
             await updateTokens(uid, this.service, {
                 RefreshToken: credentials.tokens.refresh_token,
                 AccessToken: credentials.tokens.access_token,
-                ExpirationTime: credentials.tokens.expiry_date
+                ExpirationTime: `${credentials.tokens.expiry_date}`
             })
 
         }, 'Unable to complete callback transaction with YouTube Data API');
@@ -303,10 +303,6 @@ class Youtube{
         }
         return playlistId;
     }
-
-    // async searchTrack(uid, accessToken, req, term){
-    //     return await this.getSongInfo(term, 5);
-    // }
 
     async lookup(uid, accessToken, req, id){
         let client = this.createO2AuthClient(uid, accessToken, req);
