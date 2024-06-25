@@ -6,28 +6,45 @@ const cors = require('cors');
 const { User } = require('./db/user');
 const errorHandleWrapper = require('./helpers/errorHandleWrapper');
 const userRouter = require('./userRouter');
+const crypto = require("crypto");
+const { default: RedisStore } = require('connect-redis');
+const { createClient } = require('redis');
+require('dotenv').config();
 require('./db/connect');
-// const bcrypt = require('bcrypt');
 
 const app = express();
 const port = 3000;
+const secret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
+const cookieSecret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
 
-// let secret = bcrypt.genSaltSync(10);
-// secret = bcrypt.hashSync(secret, 10);
+const redisClient = createClient({
+    url: 'redis://127.0.0.1:16380' // local test environment
+
+    // url: process.env.REDIS_ENDPOINT, deployed url
+});
+redisClient.connect()
 
 app.use(cors({
     credentials: true,
     origin: 'http://localhost:5173'
     }))
     .use(session({
-        // secret: secret,
-        secret: 'hello',
-        cookie: {maxAge: 84000000, sameSite: 'lax'},
+        secret: secret,
+        store: new RedisStore({
+            client: redisClient,
+            prefix: 'flowlist:',
+        }),
+        cookie: {
+            maxAge: 8400000, 
+            sameSite: 'lax',
+            signed: true
+            // signed:
+        },
         saveUninitialized: false,
         resave: false,
     }))
+    .use(cookieParser(cookieSecret))
     .use(express.json())
-    .use(cookieParser('hello'));
 
 app.use('/user', userRouter);
 
@@ -43,11 +60,9 @@ app.post('/signup', errorHandleWrapper(async (req, res) => {
 }));
 
 app.post('/login', errorHandleWrapper(async (req, res) => {
-
     let result = await User.verifyAccountInfo(req.body);
     req.session.loggedIn = true;
     req.session.uid = result;
-    
     return {
         uid: result
     };
