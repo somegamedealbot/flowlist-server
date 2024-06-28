@@ -51,7 +51,12 @@ app.use('/user', userRouter);
 app.get('/', (req, res) => {
     res.send('service');
     // req.session.true = true;
-})
+});
+
+app.get('/health-check', (req, res) => {
+    res.status(200);
+    res.send('healthy');
+});
 
 app.post('/signup', errorHandleWrapper(async (req, res) => {
     console.log(req.body);
