@@ -272,28 +272,10 @@ class Spotify{
 
     static async singleSearch(searchToken, accessToken, limit){
         let results = await refreshWrapper(async(newAccessToken) => {
-            if (searchToken.match(/deleted video/i)){
-                return {
-                    tracks: {
-                        href: undefined,
-                        items: []
-                    },
-                    deleted: true
-                }
+            if (newAccessToken) {
+                accessToken = newAccessToken;
             }
-            const data = (await axios.get(`https://api.spotify.com/v1/search?${
-                new URLSearchParams({
-                    q: searchToken,
-                    type: 'track',
-                    limit: limit
-                })
-            }`
-            , 
-            {
-                headers: { 'Authorization': 'Bearer ' + accessToken},
-            })
-            ).data
-            return data;
+            return this.search(searchToken, accessToken, limit);
         })
         
         return results;
