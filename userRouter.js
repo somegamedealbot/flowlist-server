@@ -2,12 +2,8 @@ const express = require('express');
 const errorHandleWrapper = require('./helpers/errorHandleWrapper');
 const Spotify = require('./apis/spotify');
 const Youtube = require('./apis/youtube');
-// const workerpool = require('workerpool');
-// const pool = workerpool.pool('./apis/workerpool.js', {
-//     minWorkers: 1,
-//     maxWorkers: 10,
-//     workerType: 'thread'
-// });
+const path = require("path")
+
 const userRouter = express.Router();
 
 const services = {
@@ -81,24 +77,39 @@ userRouter.get('/spotify-url', errorHandleWrapper(async (req, res, next) => {
     }
 }));
 
+
 userRouter.get('/youtube-url', errorHandleWrapper(async (req, res, next) => {
     return {
         url: await Youtube.generateUrl(req.session.uid)
     }
 }));
 
-userRouter.post('/spotify-handle', errorHandleWrapper(async (req, res, next) => {
-    console.log(req.body);
-    await Spotify.callbackHandle(req.body, req.session.uid);
-    return {}
-}))
 
-userRouter.post('/youtube-handle', errorHandleWrapper(async (req, res, next) => {
-    console.log(req.session);
-    console.log(req.body);
-    await Youtube.callbackHandle(req.body, req.session.uid);
-    return {}
-}))
+userRouter.get('/spotify-callback', async (req, res, next) => {
+    console.log(req.query);
+
+    try { 
+        await Spotify.callbackHandle(req.query, req.session.uid);
+    }
+    catch (err){ 
+        console.error(err);
+        res.send(`unable to connect spotify account`)
+    }
+
+    res.redirect(`${process.env.CLIENT_DOMAIN + '/home'}`);
+});
+
+userRouter.get('/youtube-callback', async (req, res, next) => {
+
+    try { 
+        await Youtube.callbackHandle(req.query, req.session.uid);
+    }
+    catch (err){ 
+        console.error(err);
+        res.send(`unable to connect youtube account`)
+    }
+    res.redirect(`${process.env.CLIENT_DOMAIN + '/home'}`);
+});
 
 userRouter.get('/spotify-playlists/', errorHandleWrapper(async (req, res, next) => {
     const pageToken = req.query.pageToken ? req.query.pageToken + '&' + req.query.limit : undefined
@@ -108,18 +119,15 @@ userRouter.get('/spotify-playlists/', errorHandleWrapper(async (req, res, next) 
 }));
 
 userRouter.get('/youtube-playlists/', errorHandleWrapper(async(req, res, next) => {
-    const pageToken = req.query.pageToken;
-    // console.log('Provided token', req.session.youtube_access_token);    
+    const pageToken = req.query.pageToken;   
     let playlistData = await Youtube.getPlaylists(req.session.uid, 
         req.session.youtube_access_token, req, pageToken);
     return playlistData;
-
 }));
 
 userRouter.get('/playlist', errorHandleWrapper(async(req, res, next) => {
     const originType = req.query.type;
     const playlistId = req.query.playlistId;
-    // console.log(req.session);
     if (!(originType && playlistId)){
         throw new Error('Missing parameters type or playlistId');
     }
@@ -139,14 +147,12 @@ userRouter.post('/convert-data', errorHandleWrapper(async(req, res, next) => {
     else {
         service = 'spotify'
     }
-    // console.log(pool.stats());
-    // let result = await pool.exec(`${service}SearchSongs`, 
-    //     [req.session.uid, serviceAccessToken(service, req.session), req, tracksData]
-    // );
+
     let result = await services[service].searchTracks(
         req.session.uid, 
         serviceAccessToken(service, req.session), 
-        req, tracksData
+        req, 
+        tracksData
     );
     return result;
 
@@ -155,13 +161,14 @@ userRouter.post('/convert-data', errorHandleWrapper(async(req, res, next) => {
 userRouter.get('/search', errorHandleWrapper(async(req, res, next) => {
     const type = req.query.type;
     const term = req.query.term;
-
-    let track = await services[type].search(
-        req.session.uid,
+    console.log(term, type)
+    let track = await services[type].singleSearch(
+        term,
         serviceAccessToken(type, req.session),
-        req,
-        term
-    )
+        5
+    );
+
+    return track
 }));
 
 userRouter.get('/lookup', errorHandleWrapper(async(req, res, next) => {
@@ -174,6 +181,8 @@ userRouter.get('/lookup', errorHandleWrapper(async(req, res, next) => {
         req,
         id
     )
+
+    return track
 }));
 
 userRouter.post('/convert', errorHandleWrapper(async(req, res, next) => {

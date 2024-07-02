@@ -127,6 +127,10 @@ class Spotify{
                 const err = new Error('state does not match from request')
                 throw err;
             }
+
+            await updateTokens(uid, this.service, {
+                State: ""
+            });
                 // let uid = result.rows[0].uid;
             // request spotify for fresh refresh token
     
@@ -264,6 +268,35 @@ class Spotify{
         , uid, Spotify, req);
 
         return playlistsData
+    }
+
+    static async singleSearch(searchToken, accessToken, limit){
+        let results = await refreshWrapper(async(newAccessToken) => {
+            if (searchToken.match(/deleted video/i)){
+                return {
+                    tracks: {
+                        href: undefined,
+                        items: []
+                    },
+                    deleted: true
+                }
+            }
+            const data = (await axios.get(`https://api.spotify.com/v1/search?${
+                new URLSearchParams({
+                    q: searchToken,
+                    type: 'track',
+                    limit: limit
+                })
+            }`
+            , 
+            {
+                headers: { 'Authorization': 'Bearer ' + accessToken},
+            })
+            ).data
+            return data;
+        })
+        
+        return results;
     }
 
     static async search(searchToken, accessToken, limit){

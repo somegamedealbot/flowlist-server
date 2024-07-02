@@ -4,9 +4,10 @@ const {google} = require('googleapis');
 const { tryOperation, refreshWrapper } = require('../helpers/tryOperation');
 const { youtube_v3 } = require('googleapis/build/src/apis/youtube');
 const { getSongInfo } = require('./youtubeSearch');
-const { retrieveToken, updateTokens } = require('../helpers/cmd-helper')
-
+const { retrieveToken, updateTokens } = require('../helpers/cmd-helper');
+const crypto = require("crypto");
 require('dotenv').config();
+
 function parseCredentials({access_token, refresh_token, time}){
     return {
         expiry_date: time,
@@ -99,21 +100,41 @@ class Youtube{
         }
     }
 
-    async generateUrl(){
+    
+    async generateUrl(uid){
+        const state = crypto.randomBytes(32).toString('hex');
+
         const authroizeUrl = this.oauth2Client.generateAuthUrl({
             access_type: 'offline',
             scope: 'https://www.googleapis.com/auth/youtube',
-            prompt: 'consent'
+            prompt: 'consent',
+            state: state 
         });
+
+        await updateTokens(uid, this.service, {
+            State: state,
+        })
+        // add to code_challenge to user id
 
         return authroizeUrl;
     }
 
     async callbackHandle(queryData, uid){
         const code = queryData.code || null;
-        // const state = req.query.state || null;
+        const state = queryData.state || null;
 
         await tryOperation(async () => {
+
+            let retrievedState = await retrieveToken(uid, this.service, "State");
+
+            if (state != retrievedState){
+                const err = new Error('state does not match from request')
+                throw err;
+            }
+
+            await updateTokens(uid, this.service, {
+                State: ""
+            });
 
             let credentials = await this.oauth2Client.getToken(code);
             
@@ -121,7 +142,7 @@ class Youtube{
                 RefreshToken: credentials.tokens.refresh_token,
                 AccessToken: credentials.tokens.access_token,
                 ExpirationTime: `${credentials.tokens.expiry_date}`
-            })
+            });
 
         }, 'Unable to complete callback transaction with YouTube Data API');
 
@@ -223,14 +244,31 @@ class Youtube{
         return combinedResponse;
     }
 
-    async search(searchTokens){
+    async singleSearch(searchToken, accessToken, alts){
+        const res = await tryOperation(async () => {
+            const combinedResult = {
+                tracks: []
+            }
+            const reqs = []
+            let data = await getSongInfo(searchToken, alts);
+    
+            combinedResult.tracks = data
+            return combinedResult;
+
+        }, 'Unable to complete youtube search');
+
+        return res; 
+    }
+
+    async search(searchTokens, accessToken, alts){
+
         const res = await tryOperation(async () => {
             const combinedResult = {
                 tracks: []
             }
             const reqs = []
             for (let token of searchTokens){
-                let data = getSongInfo(token, 1);
+                let data = getSongInfo(token, alts);
                 reqs.push(data);
             }
     
@@ -242,14 +280,14 @@ class Youtube{
         return res; 
     }
 
-    async searchTracks(uid, accessToken, req, tracksData){
+    async searchTracks(uid, accessToken, req, tracksData, alts=1){
         // tracksData.searchTokens;
         const searchTokens = tracksData.searchTokens;
         // for (const track of tracksData){
         //     if (!track.deleted)
         //     searchTokens.push(track.searchToken)
         // }
-        let data = await this.search(searchTokens);
+        let data = await this.search(searchTokens, alts);
         // let data = await pool.exec('youtubeSearchSongs', [searchTokens]);
         return data;
     }
