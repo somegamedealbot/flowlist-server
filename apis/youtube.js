@@ -273,6 +273,7 @@ class Youtube{
             }
     
             combinedResult.tracks = await Promise.all(reqs);
+            console.log(combinedResult)
             return combinedResult;
 
         }, 'Unable to complete youtube search');
@@ -287,7 +288,7 @@ class Youtube{
         //     if (!track.deleted)
         //     searchTokens.push(track.searchToken)
         // }
-        let data = await this.search(searchTokens, alts);
+        let data = await this.search(searchTokens, accessToken, alts);
         // let data = await pool.exec('youtubeSearchSongs', [searchTokens]);
         return data;
     }
