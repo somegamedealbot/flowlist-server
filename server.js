@@ -35,7 +35,7 @@ app.use(cors({
             prefix: 'flowlist:',
         }),
         cookie: {
-            maxAge: 8400000, 
+            maxAge: 86400000, 
             sameSite: 'lax',
             signed: true
             // signed:

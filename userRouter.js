@@ -45,13 +45,13 @@ userRouter.use('/', async (req, res, next) => {
         req.session.youtube_access_token = youtube_access_token;
         
         res.cookie('loggedIn', true, {
-            maxAge: 84000000,
+            maxAge: 86400000,
             signed: true,
             sameSite: 'strict'
         });
 
         res.cookie('spotify_auth', spotify_access_token ? "true" : "false", {
-            maxAge: 84000000,
+            maxAge: 86400000,
             signed: false,
             sameSite: 'strict'
         });
