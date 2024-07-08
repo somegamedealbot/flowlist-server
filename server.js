@@ -13,7 +13,6 @@ require('dotenv').config();
 require('./db/connect');
 
 const app = express();
-const port = 3000;
 const secret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
 const cookieSecret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
 
@@ -79,6 +78,6 @@ app.get('/logout', errorHandleWrapper(async(req, res) => {
 }));
 
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+    console.log(`Server running on port ${process.env.SERVER_PORT}`);
 })
 
