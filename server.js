@@ -17,15 +17,14 @@ const secret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex')
 const cookieSecret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
 
 const redisClient = createClient({
-    url: 'redis://127.0.0.1:16380' // local test environment
-
-    // url: process.env.REDIS_ENDPOINT, deployed url
+    // url: 'redis://127.0.0.1:16380' // local test environment
+    url: process.env.REDIS_ENDPOINT, // deployed url
 });
 redisClient.connect()
 
 app.use(cors({
     credentials: true,
-    origin: 'http://localhost:5173'
+    origin: 'flowlist-lb-1186874570.us-east-2.elb.amazonaws.com'
     }))
     .use(session({
         secret: secret,
