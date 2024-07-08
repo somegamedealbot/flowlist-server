@@ -29,15 +29,16 @@ class User{
     }
 
     static errorMapping = {
-        'invalid_login': ['Incorrect email or password given', 403],
-        'email_exists': ['Email already in use', 403],
+        'invalid_login': ['Incorrect email or password given', 400],
+        'email_exists': ['Email already in use', 400],
         default: ['Internal server error', 500]
     }
 
     static errorHandle(errStr){
-        let errMsg, status = this.errorMapping[errStr]
-        let error = new Error(errMsg)
-        error.status = status 
+        let [errMsg, status] = this.errorMapping[errStr];
+        let error = new Error(errMsg);
+        error.status = status;
+        throw error;
     }
 
     static async tryOperation(op, errMessage){
@@ -135,7 +136,6 @@ class User{
             let uid = item.Uid.S
             let password = item.Password.S
             let equal = await bcrypt.compare(accountInfo.password, password);
-            
             if (!equal){
                 this.errorHandle('invalid_login')
             }
