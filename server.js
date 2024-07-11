@@ -7,21 +7,23 @@ const { User } = require('./db/user');
 const errorHandleWrapper = require('./helpers/errorHandleWrapper');
 const userRouter = require('./userRouter');
 const crypto = require("crypto");
-const { default: RedisStore } = require('connect-redis');
-const { createClient } = require('redis');
+const { createClient } = require('./db/dynamo-client');
+// const { default: RedisStore } = require('connect-redis');
+// const { createClient } = require('redis');
 require('dotenv').config();
 require('./db/connect');
 
 const app = express();
 const secret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
 const cookieSecret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
+const DynamoDBStore = require("connect-dynamodb")(session);
 
-const redisClient = createClient({
-    url: 'redis://127.0.0.1:16380' // local test environment
+// const redisClient = createClient({
+//     url: 'redis://127.0.0.1:16380' // local test environment
 
-    // url: process.env.REDIS_ENDPOINT, deployed url
-});
-redisClient.connect()
+//     // url: process.env.REDIS_ENDPOINT, deployed url
+// });
+// redisClient.connect()
 
 app.use(cors({
     credentials: true,
@@ -29,9 +31,16 @@ app.use(cors({
     }))
     .use(session({
         secret: secret,
-        store: new RedisStore({
-            client: redisClient,
-            prefix: 'flowlist:',
+        store: new DynamoDBStore({
+            table: "flowlist-sessions",
+            client: createClient(),
+            readCapacityUnits: 5,
+            writeCapacityUnits: 5,
+            // specialKeys: [
+            //     {
+
+            //     }
+            // ]
         }),
         cookie: {
             maxAge: 86400000, 
@@ -54,6 +63,7 @@ app.get('/', (req, res) => {
 
 app.get('/health-check', (req, res) => {
     res.status(200);
+    console.log('server healthy')
     res.send('healthy');
 });
 
