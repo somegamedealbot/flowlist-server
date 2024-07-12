@@ -27,7 +27,7 @@ userRouter.use((err, req, res, next) => {
 })
 
 userRouter.use('/', async (req, res, next) => {
-    console.log(req.session.loggedIn)
+    // console.log(req.session.loggedIn)
     if (!req.session.loggedIn){
         res.status(403);
         res.json({
@@ -47,19 +47,19 @@ userRouter.use('/', async (req, res, next) => {
         res.cookie('loggedIn', true, {
             maxAge: 86400000,
             signed: true,
-            sameSite: 'strict'
+            sameSite: 'none'
         });
 
         res.cookie('spotify_auth', spotify_access_token ? "true" : "false", {
             maxAge: 86400000,
             signed: false,
-            sameSite: 'strict'
+            sameSite: 'none'
         });
 
         res.cookie('youtube_auth', youtube_access_token ? "true" : "false", {
             maxAge: 84000000,
             signed: false,
-            sameSite: 'strict'
+            sameSite: 'none'
         });
 
         next();
@@ -71,7 +71,7 @@ userRouter.get('/', errorHandleWrapper((req, res, next) => {
 }));
 
 userRouter.get('/spotify-url', errorHandleWrapper(async (req, res, next) => {
-    console.log(req.session);
+    // console.log(req.session);
     return {
         url: await Spotify.generateUrl(req.session.uid)
     }
@@ -86,7 +86,7 @@ userRouter.get('/youtube-url', errorHandleWrapper(async (req, res, next) => {
 
 
 userRouter.get('/spotify-callback', async (req, res, next) => {
-    console.log(req.query);
+    // console.log(req.query);
 
     try { 
         await Spotify.callbackHandle(req.query, req.session.uid);
@@ -161,7 +161,7 @@ userRouter.post('/convert-data', errorHandleWrapper(async(req, res, next) => {
 userRouter.get('/search', errorHandleWrapper(async(req, res, next) => {
     const type = req.query.type;
     const term = req.query.term;
-    console.log(term, type)
+    // console.log(term, type)
     let track = await services[type].singleSearch(
         term,
         serviceAccessToken(type, req.session),

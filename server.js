@@ -30,7 +30,7 @@ app.use(cors({
         }),
         cookie: {
             maxAge: 86400000, 
-            sameSite: 'lax',
+            sameSite: 'none',
             signed: true
         },
         saveUninitialized: false,
@@ -52,7 +52,7 @@ app.get('/health-check', (req, res) => {
 });
 
 app.post('/signup', errorHandleWrapper(async (req, res) => {
-    console.log(req.body);
+    // console.log(req.body);
     let result = await User.insertAccount(req.body);
     return {};
 }));

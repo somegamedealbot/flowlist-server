@@ -80,7 +80,7 @@ class Spotify{
     static async generateUrl(uid){
         let scope = 'playlist-read-private user-read-private user-read-email user-library-read user-library-modify playlist-modify-public playlist-modify-private';
         const state = generateAuthKey(16);
-        console.log(state);
+        // console.log(state);
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: process.env.SPOTIFY_CLIENT_ID,
@@ -98,7 +98,7 @@ class Spotify{
         }, 'Something went wrong when communicating with database');
 
         const url = "https://accounts.spotify.com/authorize?" + params.toString();
-        console.log(url);
+        // console.log(url);
         return url;
     }
 
@@ -164,7 +164,7 @@ class Spotify{
             options.data = undefined;
 
             const {id} = (await axios(options)).data;
-            console.log(id);
+            // console.log(id);
             
             await updateTokens(uid, this.service, {
                 Id: id
@@ -252,7 +252,7 @@ class Spotify{
             if (newAccessToken){
                 accessToken = newAccessToken
             }
-            console.log('nextPage link:', pageToken)
+            // console.log('nextPage link:', pageToken)
             let response = await axios({
                 method: 'get',
                 url: pageToken ? 
