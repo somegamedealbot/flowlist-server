@@ -61,6 +61,7 @@ class User{
         let result = await this.tryOperation(async () => {
             
             let client = createClient();
+            console.log(client.config);
             let checkQuery = new QueryCommand({
                 TableName: TABLE_NAME,
                 IndexName: process.env.INDEX_NAME,

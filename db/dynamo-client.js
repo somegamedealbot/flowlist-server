@@ -14,7 +14,8 @@ const createClient = () => {
         region: process.env.DB_REGION,  
         credentials: fromContainerMetadata({
             maxRetries: 3
-        })
+        }),
+        
     }) 
 }
 

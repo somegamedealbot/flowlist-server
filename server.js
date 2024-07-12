@@ -18,7 +18,7 @@ const DynamoDBStore = require("connect-dynamodb")(session);
 
 app.use(cors({
     credentials: true,
-    origin: ['flowlist-lb-1186874570.us-east-2.elb.amazonaws.com', 'http://localhost:5173']
+    origin: ['http://flowlist-lb-1186874570.us-east-2.elb.amazonaws.com', 'http://localhost:5173']
     }))
     .use(session({
         secret: secret,
