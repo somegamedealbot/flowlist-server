@@ -1,0 +1,112 @@
+{
+    "taskDefinitionArn": "arn:aws:ecs:us-east-2:577695409480:task-definition/run-flowlist:8",
+    "containerDefinitions": [
+        {
+            "name": "flowlist-express",
+            "image": "577695409480.dkr.ecr.us-east-2.amazonaws.com/flowlist-express:latest",
+            "cpu": 768,
+            "memory": 768,
+            "memoryReservation": 512,
+            "portMappings": [
+                {
+                    "name": "express",
+                    "containerPort": 8080,
+                    "hostPort": 80,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
+                }
+            ],
+            "essential": true,
+            "command": [
+                "npm",
+                "start"
+            ],
+            "environment": [],
+            "environmentFiles": [
+                {
+                    "value": "arn:aws:s3:::flowlist-server/.env",
+                    "type": "s3"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "workingDirectory": "/home/node/app",
+            "dockerLabels": {
+                "flowlist": "express"
+            },
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/run-flowlist",
+                    "awslogs-create-group": "true",
+                    "awslogs-region": "us-east-2",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "systemControls": []
+        }
+    ],
+    "family": "run-flowlist",
+    "taskRoleArn": "arn:aws:iam::577695409480:role/ecsTaskExecutionRole",
+    "executionRoleArn": "arn:aws:iam::577695409480:role/ecsTaskExecutionRole",
+    "networkMode": "bridge",
+    "revision": 8,
+    "volumes": [],
+    "status": "ACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.17"
+        },
+        {
+            "name": "ecs.capability.env-files.s3"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.21"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.task-iam-role"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.29"
+        }
+    ],
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2"
+    ],
+    "requiresCompatibilities": [
+        "EC2"
+    ],
+    "cpu": "870",
+    "memory": "768",
+    "runtimePlatform": {
+        "cpuArchitecture": "X86_64",
+        "operatingSystemFamily": "LINUX"
+    },
+    "registeredAt": "2024-07-12T04:59:24.348Z",
+    "registeredBy": "arn:aws:iam::577695409480:root",
+    "tags": [
+        {
+            "key": "flowlist",
+            "value": "run-container"
+        }
+    ]
+}
