@@ -80,7 +80,7 @@ class Spotify{
     static async generateUrl(uid){
         let scope = 'playlist-read-private user-read-private user-read-email user-library-read user-library-modify playlist-modify-public playlist-modify-private';
         const state = generateAuthKey(16);
-        console.log(state);
+        // console.log(state);
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: process.env.SPOTIFY_CLIENT_ID,
@@ -98,13 +98,13 @@ class Spotify{
         }, 'Something went wrong when communicating with database');
 
         const url = "https://accounts.spotify.com/authorize?" + params.toString();
-        console.log(url);
+        // console.log(url);
         return url;
     }
 
     static async getAccessToken(uid){
         return await tryOperation(async () => {            
-            let accessToken = retrieveToken(uid, this.service)
+            let accessToken = await retrieveToken(uid, this.service)
             return accessToken
         });
     }
@@ -115,18 +115,23 @@ class Spotify{
 
         await tryOperation(async () => {
 
-            if (state != state){
-                const err = new Error('state does not match from request')
-            }
+            let retrievedState = await retrieveToken(uid, this.service, "State")
 
-            let state = await retrieveToken(uid, this.service, "State")
+            // if (result.rowCount === 0){
+            //     const err = new Error('Invalid state given from request');
+            //     err.status = 403;
+            //     throw err;
+            // }
             
-            if (result.rowCount === 0){
-                const err = new Error('Invalid state given from request');
-                err.status = 403;
+            if (state != retrievedState){
+                const err = new Error('state does not match from request')
                 throw err;
             }
-            // let uid = result.rows[0].uid;
+
+            await updateTokens(uid, this.service, {
+                State: ""
+            });
+                // let uid = result.rows[0].uid;
             // request spotify for fresh refresh token
     
             const options = {
@@ -159,7 +164,7 @@ class Spotify{
             options.data = undefined;
 
             const {id} = (await axios(options)).data;
-            console.log(id);
+            // console.log(id);
             
             await updateTokens(uid, this.service, {
                 Id: id
@@ -247,13 +252,11 @@ class Spotify{
             if (newAccessToken){
                 accessToken = newAccessToken
             }
-            
+            // console.log('nextPage link:', pageToken)
             let response = await axios({
                 method: 'get',
                 url: pageToken ? 
-                    pageToken + new URLSearchParams({
-                        limit: '50',
-                    }) : 
+                    pageToken : 
                     apiPlaylistURI + new URLSearchParams({
                         limit: '50',
                     }),
@@ -265,6 +268,17 @@ class Spotify{
         , uid, Spotify, req);
 
         return playlistsData
+    }
+
+    static async singleSearch(searchToken, accessToken, limit){
+        let results = await refreshWrapper(async(newAccessToken) => {
+            if (newAccessToken) {
+                accessToken = newAccessToken;
+            }
+            return this.search(searchToken, accessToken, limit);
+        })
+        
+        return results;
     }
 
     static async search(searchToken, accessToken, limit){
@@ -324,7 +338,7 @@ class Spotify{
             };
 
              
-            const spotifyUid = retrieveToken(uid, this.service, "Id");
+            const spotifyUid = await retrieveToken(uid, this.service, "Id");
 
             const body = {
                 name: playlistData.title,

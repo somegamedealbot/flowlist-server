@@ -6,50 +6,62 @@ const cors = require('cors');
 const { User } = require('./db/user');
 const errorHandleWrapper = require('./helpers/errorHandleWrapper');
 const userRouter = require('./userRouter');
-const Spotify = require('./apis/spotify');
+const crypto = require("crypto");
+const { createClient } = require('./db/dynamo-client');
+require('dotenv').config();
 require('./db/connect');
-const Youtube = require('./apis/youtube');
-// const bcrypt = require('bcrypt');
 
 const app = express();
-const port = 3000;
-
-// let secret = bcrypt.genSaltSync(10);
-// secret = bcrypt.hashSync(secret, 10);
+const secret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
+const cookieSecret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
+const DynamoDBStore = require("connect-dynamodb")(session);
 
 app.use(cors({
     credentials: true,
-    origin: 'http://localhost:5173'
+    origin: ['http://flowlist-lb-1186874570.us-east-2.elb.amazonaws.com', 'http://localhost:5173', 'https://flowlist.co']
     }))
     .use(session({
-        // secret: secret,
-        secret: 'hello',
-        cookie: {maxAge: 84000000, sameSite: 'lax'},
+        secret: secret,
+        store: new DynamoDBStore({
+            table: "flowlist-sessions",
+            client: createClient(),
+            readCapacityUnits: 5,
+            writeCapacityUnits: 5
+        }),
+        cookie: {
+            maxAge: 86400000, 
+            sameSite: 'none',
+            secure: true,
+            signed: true
+        },
         saveUninitialized: false,
         resave: false,
     }))
+    .use(cookieParser(cookieSecret))
     .use(express.json())
-    .use(cookieParser('hello'));
 
 app.use('/user', userRouter);
 
 app.get('/', (req, res) => {
     res.send('service');
-    // req.session.true = true;
-})
+});
+
+app.get('/health-check', (req, res) => {
+    res.status(200);
+    console.log('server healthy');
+    res.send('healthy');
+});
 
 app.post('/signup', errorHandleWrapper(async (req, res) => {
-    console.log(req.body);
+    // console.log(req.body);
     let result = await User.insertAccount(req.body);
     return {};
 }));
 
 app.post('/login', errorHandleWrapper(async (req, res) => {
-
     let result = await User.verifyAccountInfo(req.body);
     req.session.loggedIn = true;
     req.session.uid = result;
-    
     return {
         uid: result
     };
@@ -60,7 +72,7 @@ app.get('/logout', errorHandleWrapper(async(req, res) => {
     return {};
 }));
 
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+app.listen(process.env.SERVER_PORT, () => {
+    console.log(`Server running on port ${process.env.SERVER_PORT}`);
 })
 
