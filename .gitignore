@@ -1,2 +1,15 @@
 \node_modules
 .env
+db/dyanmo-test.js
+db/init-dynamo.js
+db/tokens.js
+db/test.js
+
+helpers/workers.js
+helpers/tasks.js
+helpers/workers.js
+Dockerfile
+scaling.txt
+db/tests/insert-user.js
+helpers/workers.js
+flowlist.co-ssl-bundle/

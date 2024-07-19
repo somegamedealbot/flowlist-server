@@ -49,7 +49,6 @@ const buildUpdateAttributes = (tokenInfo, service) => {
  * @param {*} tokenInfo infomation about tokens
  */
 const updateTokens = async (uid, service, tokenInfo={RefreshToken: null, AccessToken: null, ExpirationTime: null, State: null}) => {
-    console.log(uid)
     let [names, values, updateExp] = buildUpdateAttributes(tokenInfo, service)    
     let client = createClient()
     
