@@ -8,7 +8,6 @@ db/test.js
 helpers/workers.js
 helpers/tasks.js
 helpers/workers.js
-docker-compose.yaml
 Dockerfile
 scaling.txt
 db/tests/insert-user.js
