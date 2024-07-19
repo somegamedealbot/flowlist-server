@@ -36,6 +36,8 @@ env:
   ECS_SERVICE: flowlist-main-service                 # set this to your Amazon ECS service name
   ECS_CLUSTER: flowlist-clusterASG                 # set this to your Amazon ECS cluster name
   ECS_TASK_DEFINITION: run-flowlist # set this to the path to your Amazon ECS task definition
+  AWS_PORT: 8080 # port used to queue requests for ec2 instance
+  SERVER_PORT: 8080 # port used by server
                                                # file, e.g. .aws/task-definition.json
   CONTAINER_NAME: flowlist-express           # set this to the name of the container in the
                                                # containerDefinitions section of your task definition
@@ -73,7 +75,6 @@ jobs:
         # Build a docker container and
         # push it to ECR so that it can
         # be deployed to ECS.
-        printenv
         docker compose build
         docker tag ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
