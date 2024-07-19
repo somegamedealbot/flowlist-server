@@ -34,7 +34,7 @@ env:
   AWS_REGION: us-east-2                   # set this to your preferred AWS region, e.g. us-west-1
   ECR_REPOSITORY: flowlist-express           # set this to your Amazon ECR repository name
   ECS_SERVICE: flowlist-main-service                 # set this to your Amazon ECS service name
-  ECS_CLUSTER: flowlist-clusterASG                 # set this to your Amazon ECS cluster name
+  ECS_CLUSTER: flowlist-cluster                # set this to your Amazon ECS cluster name
   ECS_TASK_DEFINITION: run-flowlist.json # set this to the path to your Amazon ECS task definition
   AWS_PORT: 8080 # port used to queue requests for ec2 instance
   SERVER_PORT: 8080 # port used by server
