@@ -29,13 +29,14 @@ app.use(cors({
             writeCapacityUnits: 5
         }),
         cookie: {
-            maxAge: 86400000, 
+            maxAge: 86400000,
             sameSite: 'none',
             secure: true,
             signed: true
         },
         saveUninitialized: false,
         resave: false,
+        proxy: true
     }))
     .use(cookieParser(cookieSecret))
     .use(express.json())
@@ -48,7 +49,6 @@ app.get('/', (req, res) => {
 
 app.get('/health-check', (req, res) => {
     res.status(200);
-    console.log('server healthy');
     res.send('healthy');
 });
 
@@ -60,7 +60,11 @@ app.post('/signup', errorHandleWrapper(async (req, res) => {
 
 app.post('/login', errorHandleWrapper(async (req, res) => {
     let result = await User.verifyAccountInfo(req.body);
-    req.session.loggedIn = true;
+    res.cookie('loggedIn', true, {
+        maxAge: 86400000,
+        signed: true,
+        sameSite: 'strict',
+    });
     req.session.uid = result;
     return {
         uid: result
