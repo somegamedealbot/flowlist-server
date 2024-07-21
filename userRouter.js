@@ -86,7 +86,6 @@ userRouter.get('/youtube-url', errorHandleWrapper(async (req, res, next) => {
 
 
 userRouter.get('/spotify-callback', async (req, res, next) => {
-    // console.log(req.query);
 
     try { 
         await Spotify.callbackHandle(req.query, req.session.uid);
