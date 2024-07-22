@@ -27,7 +27,6 @@ userRouter.use((err, req, res, next) => {
 })
 
 userRouter.use('/', async (req, res, next) => {
-    // console.log(req.session.loggedIn)
     if (!req.session){
         res.status(403);
         res.json({
@@ -154,7 +153,6 @@ userRouter.post('/convert-data', errorHandleWrapper(async(req, res, next) => {
 userRouter.get('/search', errorHandleWrapper(async(req, res, next) => {
     const type = req.query.type;
     const term = req.query.term;
-    // console.log(term, type)
     let track = await services[type].singleSearch(
         term,
         serviceAccessToken(type, req.session),
