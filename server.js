@@ -9,7 +9,6 @@ const userRouter = require('./userRouter');
 const crypto = require("crypto");
 const { createClient } = require('./db/dynamo-client');
 require('dotenv').config();
-require('./db/connect');
 
 const app = express();
 const secret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
@@ -74,6 +73,9 @@ app.post('/login', errorHandleWrapper(async (req, res) => {
 
 app.get('/logout', errorHandleWrapper(async(req, res) => {
     req?.session.destroy();
+    req.clearCookie('loggedIn');
+    req.clearCookie('spotify_auth_token');
+    req.clearCookie('youtube_auth_token');
     return {};
 }));
 

@@ -12,3 +12,4 @@ scaling.txt
 db/tests/insert-user.js
 helpers/workers.js
 flowlist.co-ssl-bundle/
+.env.test
