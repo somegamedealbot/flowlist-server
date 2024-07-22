@@ -26,12 +26,11 @@ userRouter.use((err, req, res, next) => {
 })
 
 userRouter.use('/', async (req, res, next) => {
-    console.log(req.session.loggedIn)
-    if (!req.session.loggedIn){
+    if (!req.session){
         res.status(403);
         res.json({
             error: {
-                message: 'Session timed out'
+                message: 'Session does not exist'
             },
             sessionTimedOut: true
         })
@@ -42,22 +41,16 @@ userRouter.use('/', async (req, res, next) => {
 
         req.session.spotify_access_token = spotify_access_token;
         req.session.youtube_access_token = youtube_access_token;
-        
-        res.cookie('loggedIn', true, {
+
+        res.cookie('spotify_auth', spotify_access_token ? "true" : "false", {
             maxAge: 86400000,
             signed: true,
             sameSite: 'strict'
         });
 
-        res.cookie('spotify_auth', spotify_access_token ? "true" : "false", {
-            maxAge: 86400000,
-            signed: false,
-            sameSite: 'strict'
-        });
-
         res.cookie('youtube_auth', youtube_access_token ? "true" : "false", {
             maxAge: 84000000,
-            signed: false,
+            signed: true,
             sameSite: 'strict'
         });
 
@@ -70,7 +63,7 @@ userRouter.get('/', errorHandleWrapper((req, res, next) => {
 }));
 
 userRouter.get('/spotify-url', errorHandleWrapper(async (req, res, next) => {
-    console.log(req.session);
+    // console.log(req.session);
     return {
         url: await Spotify.generateUrl(req.session.uid)
     }
@@ -85,7 +78,6 @@ userRouter.get('/youtube-url', errorHandleWrapper(async (req, res, next) => {
 
 
 userRouter.get('/spotify-callback', async (req, res, next) => {
-    console.log(req.query);
 
     try { 
         await Spotify.callbackHandle(req.query, req.session.uid);
@@ -160,7 +152,6 @@ userRouter.post('/convert-data', errorHandleWrapper(async(req, res, next) => {
 userRouter.get('/search', errorHandleWrapper(async(req, res, next) => {
     const type = req.query.type;
     const term = req.query.term;
-    console.log(term, type)
     let track = await services[type].singleSearch(
         term,
         serviceAccessToken(type, req.session),

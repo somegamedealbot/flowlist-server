@@ -175,7 +175,7 @@ class Youtube{
                 AccessToken: access_token
             });
 
-            console.log(access_token);
+            // console.log(access_token);
             req.session.youtube_access_token = access_token;
             return creds.data;
 
@@ -273,7 +273,7 @@ class Youtube{
             }
     
             combinedResult.tracks = await Promise.all(reqs);
-            console.log(combinedResult)
+            // console.log(combinedResult)
             return combinedResult;
 
         }, 'Unable to complete youtube search');
@@ -304,8 +304,8 @@ class Youtube{
             }
         }
 
-        console.log(playlistData.tracks);
-        console.log(trackIds);
+        // console.log(playlistData.tracks);
+        // console.log(trackIds);
 
         const playlistId = (await youtubeAPI.playlists.insert({
             auth: client,

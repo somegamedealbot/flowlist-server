@@ -9,23 +9,15 @@ const userRouter = require('./userRouter');
 const crypto = require("crypto");
 const { createClient } = require('./db/dynamo-client');
 require('dotenv').config();
-require('./db/connect');
 
 const app = express();
 const secret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
 const cookieSecret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
 const DynamoDBStore = require("connect-dynamodb")(session);
 
-// const redisClient = createClient({
-//     url: 'redis://127.0.0.1:16380' // local test environment
-
-//     // url: process.env.REDIS_ENDPOINT, deployed url
-// });
-// redisClient.connect()
-
 app.use(cors({
     credentials: true,
-    origin: 'http://localhost:5173'
+    origin: ['http://flowlist-lb-1186874570.us-east-2.elb.amazonaws.com', 'http://localhost:5173', 'https://flowlist.co']
     }))
     .use(session({
         secret: secret,
@@ -33,16 +25,18 @@ app.use(cors({
             table: "flowlist-sessions",
             client: createClient(),
             readCapacityUnits: 5,
-            writeCapacityUnits: 5,
+            writeCapacityUnits: 5
         }),
         cookie: {
-            maxAge: 86400000, 
-            sameSite: 'lax',
-            signed: true
-            // signed:
+            maxAge: 86400000,
+            sameSite: 'none',
+            secure: false,
+            signed: true,
+            // domain: '.flowlist.co'
         },
         saveUninitialized: false,
         resave: false,
+        proxy: false
     }))
     .use(cookieParser(cookieSecret))
     .use(express.json())
@@ -51,7 +45,6 @@ app.use('/user', userRouter);
 
 app.get('/', (req, res) => {
     res.send('service');
-    // req.session.true = true;
 });
 
 app.get('/health-check', (req, res) => {
@@ -61,14 +54,18 @@ app.get('/health-check', (req, res) => {
 });
 
 app.post('/signup', errorHandleWrapper(async (req, res) => {
-    console.log(req.body);
+    // console.log(req.body);
     let result = await User.insertAccount(req.body);
     return {};
 }));
 
 app.post('/login', errorHandleWrapper(async (req, res) => {
     let result = await User.verifyAccountInfo(req.body);
-    req.session.loggedIn = true;
+    res.cookie('loggedIn', true, {
+        maxAge: 86400000,
+        signed: true,
+        sameSite: 'strict',
+    });
     req.session.uid = result;
     return {
         uid: result
@@ -77,6 +74,9 @@ app.post('/login', errorHandleWrapper(async (req, res) => {
 
 app.get('/logout', errorHandleWrapper(async(req, res) => {
     req?.session.destroy();
+    req.clearCookie('loggedIn');
+    req.clearCookie('spotify_auth_token');
+    req.clearCookie('youtube_auth_token');
     return {};
 }));
 

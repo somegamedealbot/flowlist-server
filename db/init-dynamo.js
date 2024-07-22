@@ -1,6 +1,6 @@
 const { CreateTableCommand, DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { UpdateTableCommand } = require("@aws-sdk/client-dynamodb/dist-cjs");
-const { fromSSO } = require("@aws-sdk/credential-providers");
+const { fromSSO, fromContainerMetadata } = require("@aws-sdk/credential-providers");
 
 require('dotenv').config();
 
@@ -12,10 +12,10 @@ const client = new DynamoDBClient({
     //     secretAccessKey: 'FakeAccessKey',
     // },
     // endpoint: 'http://localhost:8000'
-      
+    // credentials: from
       // region: REGION,
-    credentials: fromSSO({
-        profile: "bill-dev"
+    credentials: fromContainerMetadata({
+      maxRetries: 3
     })
 });
 
