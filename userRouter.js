@@ -28,11 +28,11 @@ userRouter.use((err, req, res, next) => {
 
 userRouter.use('/', async (req, res, next) => {
     // console.log(req.session.loggedIn)
-    if (!req.session.loggedIn){
+    if (!req.session){
         res.status(403);
         res.json({
             error: {
-                message: 'Session timed out'
+                message: 'Session does not exist'
             },
             sessionTimedOut: true
         })
@@ -43,22 +43,16 @@ userRouter.use('/', async (req, res, next) => {
 
         req.session.spotify_access_token = spotify_access_token;
         req.session.youtube_access_token = youtube_access_token;
-        
-        res.cookie('loggedIn', true, {
+
+        res.cookie('spotify_auth', spotify_access_token ? "true" : "false", {
             maxAge: 86400000,
             signed: true,
             sameSite: 'strict'
         });
 
-        res.cookie('spotify_auth', spotify_access_token ? "true" : "false", {
-            maxAge: 86400000,
-            signed: false,
-            sameSite: 'strict'
-        });
-
         res.cookie('youtube_auth', youtube_access_token ? "true" : "false", {
             maxAge: 84000000,
-            signed: false,
+            signed: true,
             sameSite: 'strict'
         });
 

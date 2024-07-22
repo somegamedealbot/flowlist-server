@@ -32,7 +32,8 @@ app.use(cors({
             maxAge: 86400000,
             sameSite: 'none',
             secure: true,
-            signed: true
+            signed: true,
+            // domain: '.flowlist.co'
         },
         saveUninitialized: false,
         resave: false,
