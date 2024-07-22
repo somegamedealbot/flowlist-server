@@ -1,0 +1,17 @@
+name: flowlist
+
+services:
+  express:
+    build: .
+    # image: "node:20-slim"
+    user: "node"
+    working_dir: "/home/node/app"
+    environment:
+      - NODE_ENV=development
+    env_file: ".env"
+    # volumes:
+    #   - ./:/home/node/app
+    #   - /app/node_modules
+    ports:
+      - "${AWS_PORT}:${SERVER_PORT}"
+    command: npm start
