@@ -8,8 +8,6 @@ const errorHandleWrapper = require('./helpers/errorHandleWrapper');
 const userRouter = require('./userRouter');
 const crypto = require("crypto");
 const { createClient } = require('./db/dynamo-client');
-// const { default: RedisStore } = require('connect-redis');
-// const { createClient } = require('redis');
 require('dotenv').config();
 require('./db/connect');
 
@@ -36,11 +34,6 @@ app.use(cors({
             client: createClient(),
             readCapacityUnits: 5,
             writeCapacityUnits: 5,
-            // specialKeys: [
-            //     {
-
-            //     }
-            // ]
         }),
         cookie: {
             maxAge: 86400000, 

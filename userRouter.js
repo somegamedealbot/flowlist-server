@@ -2,7 +2,6 @@ const express = require('express');
 const errorHandleWrapper = require('./helpers/errorHandleWrapper');
 const Spotify = require('./apis/spotify');
 const Youtube = require('./apis/youtube');
-const path = require("path")
 
 const userRouter = express.Router();
 
