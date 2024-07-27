@@ -7,7 +7,7 @@ const apiGetPlaylistUri = 'https://api.spotify.com/v1/playlists'
 require('dotenv').config();
 
 
-function generateAuthKey(length){ // MAKE SURE THAT IT DOES NOT GENERATE A DUPLICATE AUTH KEY BY CHECKING IT AGAINST THE DATABASe ISSUED ONES
+function generateAuthKey(length){
     var selection = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890";
     var string = [];
     var rand;
@@ -46,7 +46,6 @@ function seperateUris(uris){
     const max = 100;
 
     while (count < uris.length){
-        // let bundleCount = 0;
         const bundle = [];
         for (let i = 0; i < max && count < uris.length; i++, count++){
             if (!uris[count].deleted){
@@ -54,17 +53,6 @@ function seperateUris(uris){
             }
         }
         bundledUris.push(bundle);
-        // let combined = uris[count];
-        // count += 1;
-        // if (count >= uris.length){
-        //     bundledUris.push(combined);
-        // }
-        // else {
-        //     for (let i = 1; count < uris.length && i < max; i++, count++){
-        //         combined += ',' + uris[i];
-        //     }
-        //     bundledUris.push(combined);
-        // }
     }
 
     return bundledUris;
@@ -116,12 +104,6 @@ class Spotify{
         await tryOperation(async () => {
 
             let retrievedState = await retrieveToken(uid, this.service, "State")
-
-            // if (result.rowCount === 0){
-            //     const err = new Error('Invalid state given from request');
-            //     err.status = 403;
-            //     throw err;
-            // }
             
             if (state != retrievedState){
                 const err = new Error('state does not match from request')
@@ -131,9 +113,8 @@ class Spotify{
             await updateTokens(uid, this.service, {
                 State: ""
             });
-                // let uid = result.rows[0].uid;
+            
             // request spotify for fresh refresh token
-    
             const options = {
                 method: 'post', 
                 url: 'https://accounts.spotify.com/api/token',
@@ -252,7 +233,17 @@ class Spotify{
             if (newAccessToken){
                 accessToken = newAccessToken
             }
-            // console.log('nextPage link:', pageToken)
+
+            // later implementation, check user matches with user
+
+            // check pageToken for injection to a different url
+            let uriRegex = /https:\/\/api.spotify.com\/v1\/users\/.+\/playlists\?offset=[0-9]+&limit=50.*/
+            if (pageToken){
+                if (!uriRegex.test(pageToken)) {
+                    throw new Error('invalid spotify playlist uri');
+                }
+            }
+
             let response = await axios({
                 method: 'get',
                 url: pageToken ? 

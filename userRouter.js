@@ -2,7 +2,6 @@ const express = require('express');
 const errorHandleWrapper = require('./helpers/errorHandleWrapper');
 const Spotify = require('./apis/spotify');
 const Youtube = require('./apis/youtube');
-const path = require("path")
 
 const userRouter = express.Router();
 
@@ -27,7 +26,7 @@ userRouter.use((err, req, res, next) => {
 })
 
 userRouter.use('/', async (req, res, next) => {
-    if (!req.session){
+    if (!req.session.uid){
         res.status(403);
         res.json({
             error: {
