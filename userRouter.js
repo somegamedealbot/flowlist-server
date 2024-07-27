@@ -26,7 +26,7 @@ userRouter.use((err, req, res, next) => {
 })
 
 userRouter.use('/', async (req, res, next) => {
-    if (!req.session){
+    if (!req.session.uid){
         res.status(403);
         res.json({
             error: {
