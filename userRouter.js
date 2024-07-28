@@ -58,13 +58,13 @@ userRouter.use('/', async (req, res, next) => {
         res.cookie('spotify_auth', spotify_access_token ? "true" : "false", {
             maxAge: 86400000,
             signed: false ,
-            sameSite: 'none'
+            sameSite: 'strict'
         });
 
         res.cookie('youtube_auth', youtube_access_token ? "true" : "false", {
             maxAge: 86400000,
             signed: false,
-            sameSite: 'none'
+            sameSite: 'strict'
         });
 
         next();
