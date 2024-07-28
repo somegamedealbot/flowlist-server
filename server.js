@@ -72,7 +72,6 @@ app.get('/', (req, res) => {
 
 app.get('/health-check', (req, res) => {
     res.status(200);
-    console.log('server healthy')
     res.send('healthy');
 });
 
