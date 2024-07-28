@@ -53,7 +53,7 @@ app.use(cors({
         cookie: {
             maxAge: 86400000,
             sameSite: 'none',
-            secure: false,
+            secure: true,
             signed: true,
             // domain: '.flowlist.co'
         },
