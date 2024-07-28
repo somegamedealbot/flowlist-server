@@ -12,7 +12,7 @@ const InfoMapping = {
     'AccessToken': [':a', 'S', '#AT'],
     'ExpirationTime': [':e', 'N', '#ET'],
     'State': [':s', 'S', '#S'],
-    'Id': [':i', 'S', '#I']
+    'Id': [':i', 'S', '#I'],
 }
 
 /**
@@ -92,7 +92,6 @@ const retrieveToken = async (uid, service, type="AccessToken") => {
     })
 
     let res = await client.send(cmd)
-    console.log
     return res.Item[tokenName] ? res.Item[tokenName].S : undefined
 }
 
