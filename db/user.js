@@ -1,12 +1,11 @@
 const bcrypt = require('bcrypt');
-const connection = require('./connect');
-const { PutItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
+const { PutItemCommand, QueryCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
 const { createClient } = require('./dynamo-client')
-let { uuidv7 } = require('uuidv7')
-// import { uuidv7 } from 'uuidv7';
+const crypto = require('crypto')
+let { uuidv7 } = require('uuidv7');
 require('dotenv').config();
 
-TABLE_NAME = process.env.TABLE_NAME
+const TABLE_NAME = process.env.TABLE_NAME
 
 async function hashPassword(password){
     let salt = await bcrypt.genSalt(10);
@@ -111,27 +110,124 @@ class User{
         return result;
     }
 
+    static async findAccount(accountInfo){
+        let client = createClient();
+        let query = new QueryCommand({
+            TableName: TABLE_NAME,
+            IndexName: process.env.INDEX_NAME,
+            KeyConditionExpression: 'Email = :e',
+            ExpressionAttributeValues: {
+                ":e": {
+                    "S": accountInfo.email
+                }
+            }
+        });
+
+        let queryRes = await client.send(query);
+        return [queryRes, client];
+    }
+
+    static async passwordResetRequest(accountInfo){
+        return await this.tryOperation(async () => { 
+            let [queryRes, client] = await this.findAccount(accountInfo);
+
+            if (queryRes.Count === 1){
+                let resetToken = crypto.randomBytes(16).toString('hex');
+                let resetTokenExpiration = new Date().toISOString();
+
+                let item = queryRes.Items[0]
+                let uid = item.Uid.S
+
+                let update = new UpdateItemCommand({
+                    TableName: TABLE_NAME,
+                    Key: {
+                        'Uid': {
+                            S: uid
+                        }
+                    },
+                    UpdateExpression: 'SET #RT = :rt, #RTE = :rte',
+                    ExpressionAttributeNames: {
+                        '#RT': 'ResetToken',
+                        '#RTE': 'ResetTokenExpiration'
+                    },
+                    ExpressionAttributeValues: {
+                        ':rt': {
+                            S: resetToken
+                        },
+                        ':rte': {
+                            S: resetTokenExpiration
+                        }
+                    }
+                });
+
+                await client.send(update);
+
+            }
+        })
+    }
+
+    static async verifyResetToken(accountInfo){
+        return await this.tryOperation(async () => {
+            let resetToken = accountInfo.resetToken;
+            let email = accountInfo.email;
+    
+            let [queryRes, client] = await this.findAccount(accountInfo)
+    
+            if (!queryRes.Count || queryRes.Count === 0){
+                throw new Error('Reset token does not exist or has expired');
+            }
+
+            let item = queryRes.Items[0];
+            let uid = item.Uid.S
+            let expiration = item.ResetTokenExpiration.S
+
+            if (new Date(expiration) > new Date.now()){
+                throw new Error('Reset token does not exist or has expired');
+            }
+
+            return [uid, client];
+
+        }, 'Failed to verify reset password token ')
+
+    }
+
+    static async resetPassword(accountInfo) {
+        return await this.tryOperation(async () => {
+            let [uid, client] = await this.verifyResetToken(accountInfo);
+
+            if (uid){
+                let newHashedPassword = await hashPassword(accountInfo.password);
+                
+                let update = new UpdateItemCommand({
+                    TableName: TABLE_NAME,
+                    Key: {
+                        'Uid': {
+                            S: uid
+                        }
+                    },
+                    UpdateExpression: 'SET #P = :p',
+                    ExpressionAttributeNames: {
+                        '#P': 'Password'
+                    },
+                    ExpressionAttributeValues: {
+                        ':p': {
+                            S: newHashedPassword
+                        }
+                    }
+                });
+                await client.send(update);
+            }
+        }, 'Failed to renew password')
+    }
+
     static async verifyAccountInfo(accountInfo){
         return await this.tryOperation(async () => {
 
-            let client = createClient();
-            let query = new QueryCommand({
-                TableName: TABLE_NAME,
-                IndexName: process.env.INDEX_NAME,
-                KeyConditionExpression: 'Email = :e',
-                ExpressionAttributeValues: {
-                    ":e": {
-                        "S": accountInfo.email
-                    }
-                }
-            })
-
-            let queryRes = await client.send(query)
-            
-            if (queryRes.Count == 0){
+            let [queryRes, _ ] = await this.findAccount(accountInfo);
+        
+            if (!queryRes.Count || queryRes.Count === 0){
                 this.errorHandle('invalid_login')
             }
-
             let item = queryRes.Items[0]
             let uid = item.Uid.S
             let password = item.Password.S
