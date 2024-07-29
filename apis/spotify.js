@@ -237,9 +237,9 @@ class Spotify{
             // later implementation, check user matches with user
 
             // check pageToken for injection to a different url
-            let uriRegex = /https:\/\/api.spotify.com\/v1\/users\/.+\/playlists\?offset=[0-9]+&limit=50.*/
+            let uriRegex = /https:\/\/api\.spotify\.com\/v1\/users\/.+\/playlists\?offset=[0-9]+&limit=50.*/
             if (pageToken){
-                if (!uriRegex.test(pageToken)) {
+                if (pageToken.length > 1000 || !uriRegex.test(pageToken)) {
                     throw new Error('invalid spotify playlist uri');
                 }
             }
