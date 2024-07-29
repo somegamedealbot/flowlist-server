@@ -2,9 +2,19 @@ const express = require('express');
 const errorHandleWrapper = require('./helpers/errorHandleWrapper');
 const Spotify = require('./apis/spotify');
 const Youtube = require('./apis/youtube');
-const path = require("path")
-
+const {rateLimit} = require('express-rate-limit');
 const userRouter = express.Router();
+
+const generalLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    limit: 100,
+    standardHeaders: true,
+    message: (req, res) => { 
+        return 'Too many requests'
+    },
+    skipFailedRequests: true,
+    legacyHeaders: false
+});
 
 const services = {
     'youtube': Youtube,
@@ -26,8 +36,10 @@ userRouter.use((err, req, res, next) => {
     res.send('Internal Server Error');
 })
 
+userRouter.use(generalLimiter);
+
 userRouter.use('/', async (req, res, next) => {
-    if (!req.session){
+    if (!req.session.uid){
         res.status(403);
         res.json({
             error: {
@@ -45,13 +57,13 @@ userRouter.use('/', async (req, res, next) => {
 
         res.cookie('spotify_auth', spotify_access_token ? "true" : "false", {
             maxAge: 86400000,
-            signed: true,
+            signed: false ,
             sameSite: 'strict'
         });
 
         res.cookie('youtube_auth', youtube_access_token ? "true" : "false", {
-            maxAge: 84000000,
-            signed: true,
+            maxAge: 86400000,
+            signed: false,
             sameSite: 'strict'
         });
 

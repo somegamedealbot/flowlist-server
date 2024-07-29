@@ -4,18 +4,11 @@ const {DynamoDBClient} = require('@aws-sdk/client-dynamodb')
 
 const createClient = () => {
     return new DynamoDBClient({
-        // use for local database development
-        // credentials: {
-        //     accessKeyId: 'FakeKey',
-        //     secretAccessKey: 'FakeAccessKey',
-        // },
-        // endpoint: 'http://localhost:8000'
-        
         region: process.env.DB_REGION,  
-        credentials: fromContainerMetadata({
-            maxRetries: 3
-        }),
-        
+
+        credentials: fromSSO({ // use for local database development
+            profile: "bill-dev"
+        })
     }) 
 }
 
