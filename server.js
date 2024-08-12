@@ -59,7 +59,7 @@ app.use(cors({
         },
         saveUninitialized: false,
         resave: false,
-        proxy: false
+        proxy: true
     }))
     .use(cookieParser(cookieSecret))
     .use(express.json())
