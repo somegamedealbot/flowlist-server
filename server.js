@@ -91,7 +91,7 @@ app.post('/login', errorHandleWrapper(async (req, res) => {
         maxAge: 86400000,
         signed: true,
         sameSite: 'strict',
-        domain: process.env.CLIENT_DOMAIN
+        domain: process.env.CLIENT_DOMAIN_NAME
     });
     req.session.uid = result;
     return {

@@ -59,14 +59,14 @@ userRouter.use('/', async (req, res, next) => {
             maxAge: 86400000,
             signed: true,
             sameSite: 'strict',
-            domain: process.env.CLIENT_DOMAIN
+            domain: process.env.CLIENT_DOMAIN_NAME
         });
 
         res.cookie('youtube_auth', youtube_access_token ? "true" : "false", {
             maxAge: 86400000,
             signed: true,
             sameSite: 'strict',
-            domain: process.env.CLIENT_DOMAIN
+            domain: process.env.CLIENT_DOMAIN_NAME
         });
 
         next();
