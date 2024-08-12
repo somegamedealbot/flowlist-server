@@ -8,12 +8,35 @@ const errorHandleWrapper = require('./helpers/errorHandleWrapper');
 const userRouter = require('./userRouter');
 const crypto = require("crypto");
 const { createClient } = require('./db/dynamo-client');
+const {rateLimit} = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
 const secret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
 const cookieSecret = crypto.createHmac("sha256", crypto.randomBytes(64)).digest('hex');
 const DynamoDBStore = require("connect-dynamodb")(session);
+
+const loginLimiter = rateLimit({
+    windowMs: 1 * 60 * 60 * 1000,
+    limit: 5,
+    standardHeaders: true,
+    message: (req, res) => {
+        return 'Too many failed login attempts'
+    },
+    legacyHeaders: false,
+    skipSuccessfulRequests: true
+});
+
+const signUpLimiter = rateLimit({
+    windowMs: 1 * 60 * 60 * 1000,
+    limit: 2,
+    message: (req, res) => {
+        return 'Too many signups'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipFailedRequests: true
+});
 
 app.use(cors({
     credentials: true,
@@ -36,7 +59,7 @@ app.use(cors({
         },
         saveUninitialized: false,
         resave: false,
-        proxy: true
+        proxy: false
     }))
     .use(cookieParser(cookieSecret))
     .use(express.json())
@@ -52,11 +75,15 @@ app.get('/health-check', (req, res) => {
     res.send('healthy');
 });
 
+app.use('/signup', signUpLimiter);
+
 app.post('/signup', errorHandleWrapper(async (req, res) => {
     // console.log(req.body);
     let result = await User.insertAccount(req.body);
     return {};
 }));
+
+app.use('/login', loginLimiter);
 
 app.post('/login', errorHandleWrapper(async (req, res) => {
     let result = await User.verifyAccountInfo(req.body);
@@ -71,11 +98,16 @@ app.post('/login', errorHandleWrapper(async (req, res) => {
     };
 }))
 
-app.get('/logout', errorHandleWrapper(async(req, res) => {
+// app.post('/reset-password', errorHandleWrapper(async (req, res) => {
+//     await User.sendPasswordResetEmail(req.body)
+// }))
+
+app.post('/logout', errorHandleWrapper(async(req, res) => {
+    res.clearCookie('loggedIn');
+    res.clearCookie('spotify_auth');
+    res.clearCookie('youtube_auth');
+    res.clearCookie('connect.sid');
     req?.session.destroy();
-    req.clearCookie('loggedIn');
-    req.clearCookie('spotify_auth_token');
-    req.clearCookie('youtube_auth_token');
     return {};
 }));
 

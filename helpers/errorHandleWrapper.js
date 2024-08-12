@@ -8,7 +8,6 @@ function errorHandleWrapper(routeHandler){
         catch(err) {
             console.log(err);
             res.status(err.status ? err.status : 500)
-            console.log(err)
             res.json({
                 message: err.message
             });
