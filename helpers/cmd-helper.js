@@ -63,8 +63,7 @@ const updateTokens = async (uid, service, tokenInfo={RefreshToken: null, AccessT
             }
         },
         ReturnValues: "UPDATED_NEW"
-    })
-    console.log(cmd)
+    });
 
     await client.send(cmd)
 }
